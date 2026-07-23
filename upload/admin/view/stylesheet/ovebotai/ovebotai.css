@@ -668,15 +668,6 @@ a.ovebotai-dash-card-wide-count:hover { text-decoration: underline; }
 	background: #f6f7f7 !important;
 }
 
-/* ── Delivery fields ─────────────────────────────────────────────────────── */
-
-.ovebotai-field-delivery { margin-bottom: 12px; }
-
-.ovebotai-delivery-inputs { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-
-.ovebotai-dash { color: #787c82; }
-.ovebotai-unit { font-size: 12px; color: #787c82; }
-
 /* ── Save notice (above the form) ─────────────────────────────────────────── */
 
 .ovebotai-save-notice {
@@ -685,6 +676,7 @@ a.ovebotai-dash-card-wide-count:hover { text-decoration: underline; }
 	gap: 8px;
 	border-radius: 4px;
 	padding: 10px 14px;
+	margin-top: 15px;
 	margin-bottom: 16px;
 	font-size: 13px;
 }

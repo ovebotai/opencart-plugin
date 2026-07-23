@@ -158,19 +158,6 @@
 				.always(function () { $btn.prop('disabled', false); });
 		});
 
-		// ── Clear feed cache ─────────────────────────────────────────────────
-
-		$('.ovebotai-clear-cache-btn').on('click', function () {
-			if (!confirm(cfg.i18n.confirmClearCache)) return;
-			var $btn = $(this).prop('disabled', true);
-			$.ajax({ url: cfg.clearCacheUrl, type: 'POST', dataType: 'json' })
-				.done(function (resp) {
-					showNotice(resp && resp.success, (resp && resp.message) || cfg.i18n.error);
-				})
-				.fail(function () { showNotice(false, cfg.i18n.error); })
-				.always(function () { $btn.prop('disabled', false); });
-		});
-
 		// ── Notice helper ────────────────────────────────────────────────────
 
 		function showNotice(ok, msg, type) {

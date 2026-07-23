@@ -7,7 +7,6 @@ require_once DIR_SYSTEM . 'library/ovebotai/exceptions/ConnectionException.php';
 require_once DIR_SYSTEM . 'library/ovebotai/exceptions/ApiException.php';
 require_once DIR_SYSTEM . 'library/ovebotai/exceptions/AuthException.php';
 require_once DIR_SYSTEM . 'library/ovebotai/client.php';
-require_once DIR_SYSTEM . 'library/ovebotai/databuilder.php';
 
 use Ovebotai\Exceptions\ApiException;
 use Ovebotai\Exceptions\AuthException;
@@ -15,12 +14,14 @@ use Ovebotai\Exceptions\OvebotaiException;
 
 // Orchestrator for everything Ovebot.ai. Extends \Model so it has full
 // registry access (config, session, db, model loading) exactly like the
-// Typesense library it's modelled on. It owns two collaborators:
-//   - $client:      a dumb HTTP/OAuth transport (Client)
-//   - $dataBuilder: turns catalog data into payloads (stub for now)
+// Typesense library it's modelled on. It owns one collaborator:
+//   - $client: a dumb HTTP/OAuth transport (Client)
 // and it owns the parts the Client deliberately does not: where tokens live
 // (the `module_ovebotai` setting group), when to refresh them, and how to
 // keep the in-memory config consistent after a write within the same request.
+// The storefront-facing product feed / order lookup payloads are built by
+// ModelExtensionModuleOvebotai (catalog/model/extension/module/ovebotai.php),
+// not here.
 //
 // Loaded the same way as Typesense — the caller does
 //   require_once DIR_SYSTEM . 'library/ovebotai.php';
@@ -29,7 +30,6 @@ use Ovebotai\Exceptions\OvebotaiException;
 // direct construction is the supported path, just like \Typesense\Typesense).
 class Ovebotai extends \Model {
     private $client;
-    private $dataBuilder;
 
     // Memoized body of GET /v1/integration/status for this request. That call
     // doubles as the live connection probe (apiRequest refreshes or clears the
@@ -48,8 +48,6 @@ class Ovebotai extends \Model {
             $accountHost,
             $apiHost
         );
-
-        $this->dataBuilder = new DataBuilder($registry);
     }
 
     // ── OAuth: start ─────────────────────────────────────────────────────────
@@ -303,13 +301,49 @@ class Ovebotai extends \Model {
 
     // ── Setup (widget + products feed + order lookup) ────────────────────────
 
-    // Pushes the current local config to Ovebot.ai's /setup endpoint. Returns
-    // true on a 2xx. Products/order sections are always sent (never omitted):
-    // /setup is a partial update, so omitting a section would leave Ovebot's
-    // copy stuck on its previous value.
+    // Pushes the current local config to Ovebot.ai's /setup endpoint.
+    // Products/order sections are always sent (never omitted): /setup is a
+    // partial update, so omitting a section would leave Ovebot's copy stuck
+    // on its previous value.
+    // Returns array('success' => bool, 'error' => string) — 'error' is
+    // Ovebot's own validation/error message (see apiErrorMessage()), not a
+    // generic string, so a caller can surface exactly why a sync failed
+    // instead of forcing a debug session to find out.
     public function resyncSetup() {
         $result = $this->apiRequest('PUT', $this->setupApiPath(), $this->buildSetupPayload());
-        return $result['status'] >= 200 && $result['status'] < 300;
+        $success = $result['status'] >= 200 && $result['status'] < 300;
+
+        return array('success' => $success, 'error' => $success ? '' : $this->apiErrorMessage($result));
+    }
+
+    // Turns an apiRequest() result into a human-readable message using
+    // Ovebot's own error body, e.g.
+    //   { "error": { "message": "The given data was invalid.",
+    //                "fields": { "widget.language": ["The widget.language field is required when widget is present."] } } }
+    // becomes "The given data was invalid. The widget.language field is
+    // required when widget is present." Falls back to "HTTP <status>" when
+    // the body doesn't have the expected shape (network error, HTML error
+    // page, etc).
+    private function apiErrorMessage($result) {
+        $body    = isset($result['body']) && is_array($result['body']) ? $result['body'] : array();
+        $error   = isset($body['error']) && is_array($body['error']) ? $body['error'] : array();
+        $message = isset($error['message']) ? (string)$error['message'] : '';
+        $fields  = isset($error['fields']) && is_array($error['fields']) ? $error['fields'] : array();
+
+        $details = array();
+        foreach ($fields as $messages) {
+            foreach ((array)$messages as $field_message) {
+                $details[] = (string)$field_message;
+            }
+        }
+
+        $text = trim($message . ($details ? ' ' . implode(' ', $details) : ''));
+
+        if ($text === '') {
+            $text = 'HTTP ' . (isset($result['status']) ? (int)$result['status'] : 0);
+        }
+
+        return $text;
     }
 
     // $overrides lets a caller replace individual order_info/products fields
@@ -318,11 +352,24 @@ class Ovebotai extends \Model {
     // old, still-working value in config untouched. See regenerateFeedHash()/
     // regenerateOrderCreds().
     public function buildSetupPayload(array $overrides = array()) {
-        $widget = $this->config->get('module_ovebotai_widget');
-        if (!is_array($widget)) {
-            $widget = array();
+        // Ovebot's /setup 'widget' section only accepts `language` — see
+        // .tasks/oauth-api.md §5 ("setup:widget:write — Write the widget
+        // section of PUT …/setup (widget language)"; GET …/setup echoes back
+        // just {"widget":{"language":"ro"}}). The rest of
+        // module_ovebotai_widget (accent colour, theme, position, messages,
+        // ...) is local-only — for the storefront embed snippet, not this
+        // API — so it's deliberately left out here. Sending it used to leave
+        // a non-empty `widget` object without `language` whenever any other
+        // appearance field was set, which the API rejects with 422
+        // "The widget.language field is required when widget is present."
+        $widgetConfig = $this->config->get('module_ovebotai_widget');
+        $widgetConfig = is_array($widgetConfig) ? $widgetConfig : array();
+        $language     = (isset($widgetConfig['language']) && $widgetConfig['language'] !== '') ? (string)$widgetConfig['language'] : 'auto';
+
+        $widget = array('language' => $language);
+        if (isset($overrides['widget'])) {
+            $widget = array_merge($widget, $overrides['widget']);
         }
-        $widget = array_filter($widget, function ($v) { return $v !== '' && $v !== null; });
 
         $base     = $this->catalogBase();
         $feedHash = (string)$this->config->get('module_ovebotai_feed_hash');
@@ -348,7 +395,7 @@ class Ovebotai extends \Model {
         }
 
         return array(
-            'widget'     => $widget ? $widget : new \stdClass(),
+            'widget'     => $widget,
             'order_info' => $orderInfo,
             'products'   => $products,
         );
@@ -505,24 +552,6 @@ class Ovebotai extends \Model {
         return is_array($widget) ? $widget : array();
     }
 
-    // The six delivery-estimate keys with the same defaults as the WordPress
-    // plugin (1–2 / 2–4 / 5–10 business days for shipped / in-stock / oos).
-    public function getDeliveryDays() {
-        $defaults = array(
-            'days_shipped_min' => 1, 'days_shipped_max' => 2,
-            'days_instock_min' => 2, 'days_instock_max' => 4,
-            'days_oos_min'     => 5, 'days_oos_max'     => 10,
-        );
-
-        $values = array();
-        foreach ($defaults as $key => $default) {
-            $stored = $this->config->get('module_ovebotai_' . $key);
-            $values[$key] = ($stored !== '' && $stored !== null) ? (int)$stored : $default;
-        }
-
-        return $values;
-    }
-
     public function getFeedUrl() {
         $hash = (string)$this->config->get('module_ovebotai_feed_hash');
         return $this->catalogBase() . 'index.php?route=extension/module/ovebotai/feed&hash=' . urlencode($hash);
@@ -542,12 +571,12 @@ class Ovebotai extends \Model {
 
     // ── Settings page: save ──────────────────────────────────────────────────
 
-    // Chat on/off + widget appearance are always saved locally. Delivery days
-    // and the API resync are skipped while disconnected — mirrors the
-    // WordPress plugin exactly: a disconnected store can't sync anything
-    // API-dependent, so it's not even asked to try.
+    // Chat on/off + widget appearance are always saved locally. The API
+    // resync is skipped while disconnected — mirrors the WordPress plugin
+    // exactly: a disconnected store can't sync anything API-dependent, so
+    // it's not even asked to try.
     // Returns array('needs_reconnect' => bool, 'sync_error' => bool).
-    public function saveSettings($chatStatus, array $widget, array $delivery) {
+    public function saveSettings($chatStatus, array $widget) {
         $partial = array(
             'module_ovebotai_chat_status' => $chatStatus ? '1' : '0',
             'module_ovebotai_widget'      => $widget,
@@ -555,15 +584,18 @@ class Ovebotai extends \Model {
 
         if (!$this->isConnected()) {
             $this->persist($partial);
-            return array('needs_reconnect' => true, 'sync_error' => false);
+            return array('needs_reconnect' => true, 'sync_error' => false, 'sync_error_message' => '');
         }
 
-        foreach ($delivery as $key => $value) {
-            $partial['module_ovebotai_' . $key] = (int)$value;
-        }
         $this->persist($partial);
 
-        return array('needs_reconnect' => false, 'sync_error' => !$this->resyncSetup());
+        $resync = $this->resyncSetup();
+
+        return array(
+            'needs_reconnect'    => false,
+            'sync_error'         => !$resync['success'],
+            'sync_error_message' => $resync['success'] ? '' : $resync['error'],
+        );
     }
 
     // ── Settings page: regenerate feed hash ──────────────────────────────────
@@ -579,7 +611,7 @@ class Ovebotai extends \Model {
         $result  = $this->apiRequest('PUT', $this->setupApiPath(), $payload);
 
         if ($result['status'] < 200 || $result['status'] >= 300) {
-            return array('success' => false);
+            return array('success' => false, 'error' => $this->apiErrorMessage($result));
         }
 
         $this->persist(array('module_ovebotai_feed_hash' => $hash));
@@ -598,7 +630,7 @@ class Ovebotai extends \Model {
         $result  = $this->apiRequest('PUT', $this->setupApiPath(), $payload);
 
         if ($result['status'] < 200 || $result['status'] >= 300) {
-            return array('success' => false);
+            return array('success' => false, 'error' => $this->apiErrorMessage($result));
         }
 
         $this->persist(array(
@@ -607,18 +639,6 @@ class Ovebotai extends \Model {
         ));
 
         return array('success' => true, 'user' => $user, 'pass' => $pass);
-    }
-
-    // ── Settings page: clear feed cache ──────────────────────────────────────
-
-    // Local only, no API dependency — mirrors the WordPress plugin's cache
-    // invalidation (which just clears a transient). Bumping the version number
-    // gives the real (phase-2) feed a cache key to invalidate against once
-    // it's built.
-    public function clearFeedCache() {
-        $version = (int)$this->config->get('module_ovebotai_cache_version');
-        $this->persist(array('module_ovebotai_cache_version' => $version + 1));
-        return true;
     }
 
     private function randomToken($bytes) {

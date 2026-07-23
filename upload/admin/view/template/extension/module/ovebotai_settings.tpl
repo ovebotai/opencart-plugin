@@ -85,11 +85,6 @@
               </div>
             </div>
 
-            <div class="ovebotai-field">
-              <button type="button" class="button ovebotai-clear-cache-btn"><?php echo $button_clear_cache; ?></button>
-              <p class="description"><?php echo $help_clear_cache; ?></p>
-            </div>
-
           </div>
         </div>
 
@@ -130,52 +125,6 @@
             <div class="ovebotai-field">
               <button type="button" class="button ovebotai-regen-creds-btn"><?php echo $button_regen_creds; ?></button>
               <p class="description"><?php echo $help_regen_creds; ?></p>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- ── Delivery Estimate ──────────────────────────────────────────── -->
-        <div class="ovebotai-fieldset">
-          <div class="ovebotai-fieldset-legend">
-            <i class="fa fa-clock-o"></i>
-            <?php echo $text_delivery_heading; ?>
-          </div>
-          <div class="ovebotai-fieldset-body">
-
-            <p class="description ovebotai-fieldset-intro"><?php echo $help_delivery_intro; ?></p>
-
-            <div class="ovebotai-field ovebotai-field-delivery">
-              <label><?php echo $entry_delivery_shipped; ?></label>
-              <div class="ovebotai-delivery-inputs">
-                <input type="number" name="days_shipped_min" class="small-text" value="<?php echo (int)$delivery['days_shipped_min']; ?>" min="0" max="60">
-                <span class="ovebotai-dash">&ndash;</span>
-                <input type="number" name="days_shipped_max" class="small-text" value="<?php echo (int)$delivery['days_shipped_max']; ?>" min="0" max="60">
-                <span class="ovebotai-unit"><?php echo $text_business_days; ?></span>
-              </div>
-              <p class="description"><?php echo $help_delivery_shipped; ?></p>
-            </div>
-
-            <div class="ovebotai-field ovebotai-field-delivery">
-              <label><?php echo $entry_delivery_instock; ?></label>
-              <div class="ovebotai-delivery-inputs">
-                <input type="number" name="days_instock_min" class="small-text" value="<?php echo (int)$delivery['days_instock_min']; ?>" min="0" max="60">
-                <span class="ovebotai-dash">&ndash;</span>
-                <input type="number" name="days_instock_max" class="small-text" value="<?php echo (int)$delivery['days_instock_max']; ?>" min="0" max="60">
-                <span class="ovebotai-unit"><?php echo $text_business_days; ?></span>
-              </div>
-              <p class="description"><?php echo $help_delivery_instock; ?></p>
-            </div>
-
-            <div class="ovebotai-field ovebotai-field-delivery">
-              <label><?php echo $entry_delivery_oos; ?></label>
-              <div class="ovebotai-delivery-inputs">
-                <input type="number" name="days_oos_min" class="small-text" value="<?php echo (int)$delivery['days_oos_min']; ?>" min="0" max="60">
-                <span class="ovebotai-dash">&ndash;</span>
-                <input type="number" name="days_oos_max" class="small-text" value="<?php echo (int)$delivery['days_oos_max']; ?>" min="0" max="60">
-                <span class="ovebotai-unit"><?php echo $text_business_days; ?></span>
-              </div>
-              <p class="description"><?php echo $help_delivery_oos; ?></p>
             </div>
 
           </div>
@@ -306,7 +255,6 @@ var ovebotaiSettings = {
   saveUrl: <?php echo json_encode(html_entity_decode($save_url, ENT_QUOTES, 'UTF-8')); ?>,
   regenHashUrl: <?php echo json_encode(html_entity_decode($regen_hash_url, ENT_QUOTES, 'UTF-8')); ?>,
   regenCredsUrl: <?php echo json_encode(html_entity_decode($regen_creds_url, ENT_QUOTES, 'UTF-8')); ?>,
-  clearCacheUrl: <?php echo json_encode(html_entity_decode($clear_cache_url, ENT_QUOTES, 'UTF-8')); ?>,
   i18n: {
     saved: <?php echo json_encode($text_settings_saved); ?>,
     saving: <?php echo json_encode($text_saving); ?>,
@@ -315,7 +263,6 @@ var ovebotaiSettings = {
     disabled: <?php echo json_encode($text_disabled); ?>,
     confirmRegenHash: <?php echo json_encode($text_confirm_regen_hash); ?>,
     confirmRegenCreds: <?php echo json_encode($text_confirm_regen_creds); ?>,
-    confirmClearCache: <?php echo json_encode($text_confirm_clear_cache); ?>,
     copied: <?php echo json_encode($text_copied); ?>
   }
 };

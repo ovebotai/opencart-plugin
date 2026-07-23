@@ -88,8 +88,6 @@ $_['help_feed_intro']          = 'Ovebot.ai citește periodic acest URL pentru a
 $_['entry_feed_url']           = 'URL feed';
 $_['button_copy']              = 'Copiază';
 $_['button_regen_hash']        = 'Regenerează codul';
-$_['button_clear_cache']       = 'Golește cache-ul feed-ului';
-$_['help_clear_cache']         = 'Feed-ul este pus în cache pentru performanță. Golește-l după modificări majore ale catalogului.';
 
 // Settings — order tracking
 $_['text_orders_heading']      = 'API urmărire comenzi';
@@ -99,17 +97,6 @@ $_['entry_api_user']           = 'Utilizator API';
 $_['entry_api_pass']           = 'Parolă API';
 $_['button_regen_creds']       = 'Regenerează credențialele';
 $_['help_regen_creds']         = 'Generează o nouă pereche utilizator/parolă. Cele vechi vor înceta să funcționeze imediat.';
-
-// Settings — delivery estimate
-$_['text_delivery_heading']    = 'Estimare livrare';
-$_['help_delivery_intro']      = 'Agentul tău AI folosește aceste intervale pentru a răspunde la „Când ajunge comanda mea?" - numărate în zile lucrătoare, fără duminici. Setează un interval min-max realist pentru fiecare dintre cele trei situații de mai jos.';
-$_['entry_delivery_shipped']   = 'Comenzi care au fost deja expediate';
-$_['help_delivery_shipped']    = 'Numărate din ziua expedierii comenzii, până ajunge la client.';
-$_['entry_delivery_instock']   = 'Comenzi noi - toate produsele în stoc';
-$_['help_delivery_instock']    = 'Numărate din ziua plasării comenzii - nimic de așteptat înainte de expediere.';
-$_['entry_delivery_oos']       = 'Comenzi noi - cel puțin un produs fără stoc';
-$_['help_delivery_oos']        = 'Numărate din ziua plasării comenzii - include așteptarea reaprovizionării înainte de expediere.';
-$_['text_business_days']       = 'zile lucrătoare';
 
 // Settings — appearance
 $_['text_appearance_heading']       = 'Aspect';
@@ -152,11 +139,9 @@ $_['text_feed_regenerated']         = 'URL-ul feed-ului a fost regenerat și sin
 $_['text_feed_regen_failed']        = 'Nu s-a putut sincroniza cu Ovebot.ai - codul feed-ului a rămas neschimbat.';
 $_['text_creds_regenerated']        = 'Credențialele au fost regenerate și sincronizate cu Ovebot.ai.';
 $_['text_creds_regen_failed']       = 'Nu s-a putut sincroniza cu Ovebot.ai - credențialele au rămas neschimbate.';
-$_['text_cache_cleared']            = 'Cache golit.';
 $_['text_saving']                   = 'Se salvează…';
 $_['text_confirm_regen_hash']       = 'Regenerezi codul feed-ului? URL-ul curent al feed-ului va înceta să funcționeze.';
 $_['text_confirm_regen_creds']      = 'Regenerezi credențialele API? Cele curente vor înceta să funcționeze imediat.';
-$_['text_confirm_clear_cache']      = 'Golești cache-ul feed-ului de produse?';
 $_['text_copied']                   = 'Copiat!';
 
 // Errors

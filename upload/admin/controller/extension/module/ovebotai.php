@@ -174,7 +174,6 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         $data['chat_status'] = $ovebotai->getChatStatus() ? 1 : 0;
         $data['widget']      = $ovebotai->getWidget();
-        $data['delivery']    = $ovebotai->getDeliveryDays();
 
         $data['feed_url']   = $ovebotai->getFeedUrl();
         $data['order_url']  = $ovebotai->getOrderUrl();
@@ -184,7 +183,6 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $data['save_url']        = $this->link('extension/module/ovebotai/saveSettings');
         $data['regen_hash_url']  = $this->link('extension/module/ovebotai/regenFeedHash');
         $data['regen_creds_url'] = $this->link('extension/module/ovebotai/regenOrderCreds');
-        $data['clear_cache_url'] = $this->link('extension/module/ovebotai/clearFeedCache');
 
         $data['success'] = $this->pullSession('success');
 
@@ -293,8 +291,9 @@ class ControllerExtensionModuleOvebotai extends Controller {
         }
 
         try {
-            if (!$ovebotai->resyncSetup()) {
-                $errors[] = $this->language->get('error_sync_setup');
+            $resync = $ovebotai->resyncSetup();
+            if (!$resync['success']) {
+                $errors[] = $this->language->get('error_sync_setup') . ($resync['error'] !== '' ? ' ' . $resync['error'] : '');
             }
         } catch (\Ovebotai\Exceptions\OvebotaiException $e) {
             $errors[] = $e->getMessage();
@@ -344,14 +343,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
             }
         }
 
-        $delivery = array();
-        foreach (array('days_shipped_min', 'days_shipped_max', 'days_instock_min', 'days_instock_max', 'days_oos_min', 'days_oos_max') as $key) {
-            if (isset($this->request->post[$key])) {
-                $delivery[$key] = max(0, min(60, (int)$this->request->post[$key]));
-            }
-        }
-
-        $result = $this->ovebotai()->saveSettings($chatStatus, $widget, $delivery);
+        $result = $this->ovebotai()->saveSettings($chatStatus, $widget);
 
         $json['success'] = true;
 
@@ -360,7 +352,9 @@ class ControllerExtensionModuleOvebotai extends Controller {
             $json['needs_reconnect'] = true;
         } else {
             $json['message']  = $this->language->get('text_settings_saved');
-            $json['warnings'] = $result['sync_error'] ? array($this->language->get('text_settings_sync_failed')) : array();
+            $json['warnings'] = $result['sync_error']
+                ? array($this->language->get('text_settings_sync_failed') . ($result['sync_error_message'] !== '' ? ' ' . $result['sync_error_message'] : ''))
+                : array();
         }
 
         $this->response->addHeader('Content-Type: application/json');
@@ -385,7 +379,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         if (empty($result['success'])) {
             $json['success'] = false;
-            $json['message'] = $this->language->get('text_feed_regen_failed');
+            $json['message'] = $this->language->get('text_feed_regen_failed') . (!empty($result['error']) ? ' ' . $result['error'] : '');
         } else {
             $json['success'] = true;
             $json['hash']    = $result['hash'];
@@ -415,36 +409,13 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         if (empty($result['success'])) {
             $json['success'] = false;
-            $json['message'] = $this->language->get('text_creds_regen_failed');
+            $json['message'] = $this->language->get('text_creds_regen_failed') . (!empty($result['error']) ? ' ' . $result['error'] : '');
         } else {
             $json['success'] = true;
             $json['user']    = $result['user'];
             $json['pass']    = $result['pass'];
             $json['message'] = $this->language->get('text_creds_regenerated');
         }
-
-        $this->response->addHeader('Content-Type: application/json');
-        $this->response->setOutput(json_encode($json));
-    }
-
-    // ── Settings: clear feed cache (AJAX) ─────────────────────────────────────
-
-    public function clearFeedCache() {
-        $this->load->language('extension/module/ovebotai');
-
-        $json = array();
-
-        if (!$this->user->hasPermission('modify', 'extension/module/ovebotai')) {
-            $json['error'] = $this->language->get('error_permission');
-            $this->response->addHeader('Content-Type: application/json');
-            $this->response->setOutput(json_encode($json));
-            return;
-        }
-
-        $this->ovebotai()->clearFeedCache();
-
-        $json['success'] = true;
-        $json['message'] = $this->language->get('text_cache_cleared');
 
         $this->response->addHeader('Content-Type: application/json');
         $this->response->setOutput(json_encode($json));
@@ -532,7 +503,6 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $this->request->post['module_ovebotai_feed_hash']      = $this->config->get('module_ovebotai_feed_hash');
         $this->request->post['module_ovebotai_order_user']     = $this->config->get('module_ovebotai_order_user');
         $this->request->post['module_ovebotai_order_pass']     = $this->config->get('module_ovebotai_order_pass');
-        $this->request->post['module_ovebotai_cache_version']  = $this->config->get('module_ovebotai_cache_version');
         $this->request->post['module_ovebotai_widget']         = $this->config->get('module_ovebotai_widget');
 
         return !$this->error;

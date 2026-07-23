@@ -18,9 +18,6 @@ class ModelExtensionModuleOvebotai extends Model {
         if (empty($settings['module_ovebotai_order_pass'])) {
             $settings['module_ovebotai_order_pass'] = $this->randomToken(16);
         }
-        if (!isset($settings['module_ovebotai_cache_version'])) {
-            $settings['module_ovebotai_cache_version'] = 1;
-        }
         // Never auto-enable the storefront chat on install — that only happens
         // once the setup wizard actually completes.
         if (!isset($settings['module_ovebotai_setup_complete'])) {

@@ -88,8 +88,6 @@ $_['help_feed_intro']          = 'Ovebot.ai reads this URL periodically to keep 
 $_['entry_feed_url']           = 'Feed URL';
 $_['button_copy']              = 'Copy';
 $_['button_regen_hash']        = 'Regenerate hash';
-$_['button_clear_cache']       = 'Clear feed cache';
-$_['help_clear_cache']         = 'The feed is cached for performance. Clear it after major catalog changes.';
 
 // Settings — order tracking
 $_['text_orders_heading']      = 'Order tracking API';
@@ -99,17 +97,6 @@ $_['entry_api_user']           = 'API user';
 $_['entry_api_pass']           = 'API password';
 $_['button_regen_creds']       = 'Regenerate credentials';
 $_['help_regen_creds']         = 'Generates a new user/password pair. The old ones will stop working immediately.';
-
-// Settings — delivery estimate
-$_['text_delivery_heading']    = 'Delivery estimate';
-$_['help_delivery_intro']      = 'Your AI agent uses these ranges to answer "When will my order arrive?" - counted in business days, Sundays excluded. Set a realistic min&ndash;max range for each of the three order situations below.';
-$_['entry_delivery_shipped']   = 'Orders that have already shipped';
-$_['help_delivery_shipped']    = 'Counted from the day the order was shipped, until it reaches the customer.';
-$_['entry_delivery_instock']   = 'New orders - every item in stock';
-$_['help_delivery_instock']    = 'Counted from the day the order was placed - nothing to wait on before it ships.';
-$_['entry_delivery_oos']       = 'New orders - at least one item out of stock';
-$_['help_delivery_oos']        = 'Counted from the day the order was placed - includes the wait for restock before it can ship.';
-$_['text_business_days']       = 'business days';
 
 // Settings — appearance
 $_['text_appearance_heading']       = 'Appearance';
@@ -152,11 +139,9 @@ $_['text_feed_regenerated']         = 'Feed URL regenerated and synced with Oveb
 $_['text_feed_regen_failed']        = 'Could not sync with Ovebot.ai - feed hash left unchanged.';
 $_['text_creds_regenerated']        = 'Credentials regenerated and synced with Ovebot.ai.';
 $_['text_creds_regen_failed']       = 'Could not sync with Ovebot.ai - credentials left unchanged.';
-$_['text_cache_cleared']            = 'Cache cleared.';
 $_['text_saving']                   = 'Saving…';
 $_['text_confirm_regen_hash']       = 'Regenerate feed hash? The current feed URL will stop working.';
 $_['text_confirm_regen_creds']      = 'Regenerate API credentials? The current credentials will stop working immediately.';
-$_['text_confirm_clear_cache']      = 'Clear the product feed cache?';
 $_['text_copied']                   = 'Copied!';
 
 // Errors
