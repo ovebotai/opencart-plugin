@@ -46,13 +46,16 @@ class ModelExtensionModuleOvebotai extends Model {
         foreach ($query->rows as $row) {
             $pid = (int)$row['product_id'];
 
-            $price_raw = !empty($row['special']) ? $row['special'] : $row['price'];
-            $price     = round($this->tax->calculate($price_raw, $row['tax_class_id'], $this->config->get('config_tax')), 2);
-            $special   = !empty($row['special']) ? round($this->tax->calculate($row['special'], $row['tax_class_id'], $this->config->get('config_tax')), 2) : null;
+            $price     = round($this->tax->calculate($row['price'], $row['tax_class_id'], $this->config->get('config_tax')), 2);
+            if (!empty($row['special']) && $row['special'] < $row['price']) {
+                $special = round($this->tax->calculate($row['special'], $row['tax_class_id'], $this->config->get('config_tax')), 2);
+            } else {
+                $special = null;
+            }
 
             $category = isset($product_categories[$pid]) ? $product_categories[$pid] : null;
 
-            $sku  = !empty($row['sku']) ? $row['sku'] : (!empty($row['model']) ? $row['model'] : (string)$pid);
+            $ref  = (string)$pid;
             $name = strip_tags(html_entity_decode($row['name'], ENT_QUOTES, 'UTF-8'));
             $desc = $this->htmlToPlainText(html_entity_decode($row['description'], ENT_QUOTES, 'UTF-8'));
 
@@ -62,12 +65,12 @@ class ModelExtensionModuleOvebotai extends Model {
             }
 
             $data[] = array(
-                'ref'          => $sku,
+                'ref'          => $ref,
                 'name'         => $name,
                 'description'  => $desc,
                 'category'     => $category,
                 'manufacturer' => $row['manufacturer'] !== null ? strip_tags(html_entity_decode($row['manufacturer'], ENT_QUOTES, 'UTF-8')) : null,
-                'availability' => 'in_stock',
+                'availability' => $row['quantity'] > 0 ? 'in_stock' : 'out_of_stock',
                 'quantity'     => (int)$row['quantity'],
                 'price'        => $price,
                 'special'      => $special,
@@ -200,11 +203,11 @@ class ModelExtensionModuleOvebotai extends Model {
     // ── Order tracking ───────────────────────────────────────────────────────
 
     // $type is 'email' or 'phone', $value already validated/normalized by the
-    // controller. No AWB/carrier/tracking-number data is returned (not
-    // collected by this module) and estimated_delivery is always null — the
-    // delivery-estimate feature was dropped along with its settings-form
-    // panel, but the key stays present so Ovebot.ai's response shape is
-    // unchanged.
+    // controller. AWB/carrier/tracking_url come from the first shipping
+    // module (Label_finder) that has one for this order — null when none
+    // do. estimated_delivery is always null — the delivery-estimate feature
+    // was dropped along with its settings-form panel, but the key stays
+    // present so Ovebot.ai's response shape is unchanged.
     public function getOrderData($order_id, $type, $value) {
         $language_id = (int)$this->config->get('config_language_id');
 
@@ -232,6 +235,8 @@ class ModelExtensionModuleOvebotai extends Model {
 
         $order = $query->row;
 
+        $label = $this->findOrderLabel((int)$order['order_id']);
+
         return array(
             'id'                 => (int)$order['order_id'],
             'date'               => $order['date_added'],
@@ -239,6 +244,20 @@ class ModelExtensionModuleOvebotai extends Model {
             'total'              => round((float)$order['total'], 2),
             'currency'           => $order['currency_code'],
             'estimated_delivery' => null,
+            'carrier'            => $label !== null ? $label['name'] : null,
+            'awb'                => $label !== null ? $label['awb'] : null,
+            'awb_tracking_url'   => $label !== null ? $label['tracking_url'] : null,
         );
+    }
+
+    // Label_finder::findOrderLabel() with returnFirst = true returns a
+    // single-entry array(order_id => array(...)) or null — this unwraps to
+    // just the details array (or null).
+    private function findOrderLabel($order_id) {
+        $this->load->library('label_finder');
+
+        $result = $this->label_finder->findOrderLabel($order_id, true);
+
+        return $result ? reset($result) : null;
     }
 }

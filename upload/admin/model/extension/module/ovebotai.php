@@ -36,14 +36,19 @@ class ModelExtensionModuleOvebotai extends Model {
         $this->removeEvents();
     }
 
-    // ── Footer event (storefront widget injection point) ─────────────────────
+    // ── Storefront events ─────────────────────────────────────────────────────
 
-    // Registers the hook the storefront chat widget will render from once
-    // implemented: fires after common/footer builds its own output, with
-    // $output passed by reference (OC's controller/after event signature —
-    // ControllerExtensionModuleOvebotai::index(&$route, &$args, &$output))
-    // so the action can append the widget snippet to the page. index()
-    // itself is still a no-op stub; only the wiring is done here.
+    // Three hooks, all resolving to ControllerExtensionModuleOvebotai:
+    //   - common/footer/after: appends the chat widget snippet (index()).
+    //   - checkout/success/index/before: the success controller's own
+    //     $this->session->data['order_id'] is still readable here, so the id
+    //     is captured (captureOrderId()) into the registry before it either
+    //     runs or gets cleared.
+    //   - common/success/after: the purchase-conversion pixel (purchaseEvent())
+    //     — reads back the id captured above and appends its own snippet once
+    //     the success template's own output ($output) already exists.
+    // All three append to $output by reference (OC's .../after event
+    // signature — see index()); success/index/before only needs $route/$args.
     //
     // OpenCart's event model moved from setting/event (2.x, addEvent/
     // deleteEvent) to extension/event (3.x, addEvent/deleteEventByCode) —
@@ -51,17 +56,24 @@ class ModelExtensionModuleOvebotai extends Model {
     // on 3.x that defaults to 0.
 
     private function addEvents() {
-        $trigger = 'catalog/controller/common/footer/after';
-        $action  = 'extension/module/ovebotai/index';
+        $events = array(
+            'catalog/controller/common/footer/after'     => 'extension/module/ovebotai/index',
+            'catalog/controller/checkout/success/before' => 'extension/module/ovebotai/captureOrderId',
+            'catalog/view/*/success/after'               => 'extension/module/ovebotai/purchaseEvent',
+        );
 
         if (version_compare(VERSION, '3.0', '<')) {
             $this->load->model('extension/event');
             $this->model_extension_event->deleteEvent('module_ovebotai');
-            $this->model_extension_event->addEvent('module_ovebotai', $trigger, $action, 1);
+            foreach ($events as $trigger => $action) {
+                $this->model_extension_event->addEvent('module_ovebotai', $trigger, $action, 1);
+            }
         } else {
             $this->load->model('setting/event');
             $this->model_setting_event->deleteEventByCode('module_ovebotai');
-            $this->model_setting_event->addEvent('module_ovebotai', $trigger, $action, 1);
+            foreach ($events as $trigger => $action) {
+                $this->model_setting_event->addEvent('module_ovebotai', $trigger, $action, 1);
+            }
         }
     }
 

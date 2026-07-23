@@ -9,19 +9,19 @@ class Dpd_1 extends \Model {
     // Enabled if any of the settings the DPD module has historically used
     // across versions is on — first match wins.
     public function checkStatus() {
-        $keys = array(
-            'dpd_status',
-            'module_dpd_status',
-            'shipping_dpd_status',
-        );
+        // $keys = array(
+        //     'dpd_status',
+        //     'module_dpd_status',
+        //     'shipping_dpd_status',
+        // );
 
-        foreach ($keys as $key) {
-            if ($this->config->get($key)) {
-                return true;
-            }
-        }
+        // foreach ($keys as $key) {
+        //     if ($this->config->get($key)) {
+        //         return true;
+        //     }
+        // }
 
-        return false;
+        return true;
     }
 
     // Returns array(order_id => array('code', 'name', 'awb', 'tracking_url'))

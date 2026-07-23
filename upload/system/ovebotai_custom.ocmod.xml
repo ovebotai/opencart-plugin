@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modification>
+    <code>ovebotai</code>
+    <name>Ovebot AI</name>
+    <version>1.0</version>
+    <author>AWEB</author>
+    <link>office@awebdesign.ro</link>
+
+    <!-- ADD CUSTOM AWB FINDER FILTERS HERE, or change tracking url -->
+    <!-- <file path="catalog/controller/startup/startup.php">
+        <operation error="skip">
+            <search><![CDATA[$this->tax->setStoreAddress]]></search>
+            <add position="after"><![CDATA[
+                // Ovebot AI
+                $this->config->set('filter_label_finders', [
+                    'FanCourier',
+                    'Sameday',
+                ]);
+
+                // foreign country url language
+                $this->config->get('fancourier_tracking_url_format', 'https://www.fancourier.eu/tracking?awb={code}');
+            ]]></add>
+        </operation>
+    </file> -->
+</modification>

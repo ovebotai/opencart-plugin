@@ -86,6 +86,81 @@ class ControllerExtensionModuleOvebotai extends Controller {
         return $options;
     }
 
+    // Fired by 'catalog/controller/checkout/success/index/before' — the
+    // success controller's own $this->session->data['order_id'] is only
+    // guaranteed readable up to this point, so it's stashed on the registry
+    // for purchaseEvent() (common/success/after) to pick up once the
+    // template has rendered.
+    public function captureOrderId(&$route, &$args) {
+        if (!empty($this->session->data['order_id'])) {
+            $this->registry->set('ovebotai_order_id', (int)$this->session->data['order_id']);
+        }
+    }
+
+    // Fired by 'catalog/view/common/success/after' — appends the
+    // purchase-conversion pixel right before </body>, mirroring index()'s
+    // own snippet injection. Consumes (clears) the registry key set by
+    // captureOrderId() so a later page render on the same request/session
+    // doesn't fire the event twice.
+    public function purchaseEvent($route, &$data, &$output) {
+        $order_id = $this->registry->get('ovebotai_order_id');
+
+        if (!$order_id) {
+            return;
+        }
+
+        $this->registry->set('ovebotai_order_id', null);
+
+        if ((string)$this->config->get('module_ovebotai_setup_complete') !== '1') {
+            return;
+        }
+
+        $workspace = (string)$this->config->get('module_ovebotai_workspace');
+        if ($workspace === '' || !preg_match('/^[a-z0-9-]+$/i', $workspace)) {
+            return;
+        }
+
+        $order = $this->getPurchaseOrderData($order_id);
+        if (!$order) {
+            return;
+        }
+
+        $payload = json_encode(array(
+            'transaction_id' => $order_id,
+            'total'          => $order['total'],
+            'currency'       => $order['currency'],
+        ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $snippet = "\n<script type=\"text/javascript\">\n"
+            . "  var ovebot_ai = ovebot_ai || [];\n"
+            . "  ovebot_ai.push(['purchase', " . $payload . "]);\n"
+            . "</script>\n"
+            . '<script src="https://' . $workspace . '.ovebot.ai/widget/event.js"></script>' . "\n";
+
+        if (strpos($output, '</body>') !== false) {
+            $output = str_replace('</body>', $snippet . '</body>', $output);
+        } else {
+            $output .= $snippet;
+        }
+    }
+
+    private function getPurchaseOrderData($order_id) {
+        $query = $this->db->query(
+            "SELECT `total`, `currency_code` FROM `" . DB_PREFIX . "order`
+             WHERE `order_id` = '" . (int)$order_id . "'
+             LIMIT 1"
+        );
+
+        if (!$query->num_rows) {
+            return null;
+        }
+
+        return array(
+            'total'    => round((float)$query->row['total'], 2),
+            'currency' => $query->row['currency_code'],
+        );
+    }
+
     // GET .../module_ovebotai/feed&hash=XXX — product feed, gated by the hash
     // generated at install (and rotatable from the settings screen).
     public function feed() {
