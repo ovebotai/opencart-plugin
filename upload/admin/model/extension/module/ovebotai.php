@@ -25,11 +25,54 @@ class ModelExtensionModuleOvebotai extends Model {
         }
 
         $this->model_setting_setting->editSetting('module_ovebotai', $settings);
+
+        $this->addEvents();
     }
 
     public function uninstall() {
         // Only the setting row — no custom tables in phase 1.
         $this->db->query("DELETE FROM `" . DB_PREFIX . "setting` WHERE `code` = 'module_ovebotai'");
+
+        $this->removeEvents();
+    }
+
+    // ── Footer event (storefront widget injection point) ─────────────────────
+
+    // Registers the hook the storefront chat widget will render from once
+    // implemented: fires after common/footer builds its own output, with
+    // $output passed by reference (OC's controller/after event signature —
+    // ControllerExtensionModuleOvebotai::index(&$route, &$args, &$output))
+    // so the action can append the widget snippet to the page. index()
+    // itself is still a no-op stub; only the wiring is done here.
+    //
+    // OpenCart's event model moved from setting/event (2.x, addEvent/
+    // deleteEvent) to extension/event (3.x, addEvent/deleteEventByCode) —
+    // same addEvent() signature otherwise, just an extra $sort_order param
+    // on 3.x that defaults to 0.
+
+    private function addEvents() {
+        $trigger = 'catalog/controller/common/footer/after';
+        $action  = 'extension/module/ovebotai/index';
+
+        if (version_compare(VERSION, '3.0', '<')) {
+            $this->load->model('extension/event');
+            $this->model_extension_event->deleteEvent('module_ovebotai');
+            $this->model_extension_event->addEvent('module_ovebotai', $trigger, $action, 1);
+        } else {
+            $this->load->model('setting/event');
+            $this->model_setting_event->deleteEventByCode('module_ovebotai');
+            $this->model_setting_event->addEvent('module_ovebotai', $trigger, $action, 1);
+        }
+    }
+
+    private function removeEvents() {
+        if (version_compare(VERSION, '3.0', '<')) {
+            $this->load->model('extension/event');
+            $this->model_extension_event->deleteEvent('module_ovebotai');
+        } else {
+            $this->load->model('setting/event');
+            $this->model_setting_event->deleteEventByCode('module_ovebotai');
+        }
     }
 
     // ── Information pages for the KB select step ─────────────────────────────

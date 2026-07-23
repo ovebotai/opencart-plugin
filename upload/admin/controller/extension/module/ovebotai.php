@@ -514,9 +514,15 @@ class ControllerExtensionModuleOvebotai extends Controller {
             && (bool)$this->config->get('module_ovebotai_workspace');
     }
 
+    // Opens the storefront's own chat widget (auto-opened), not Ovebot.ai's
+    // hosted UI — the storefront's footer event handler
+    // (catalog/controller/extension/module/ovebotai.php index()) only honours
+    // ?auto-open-chat=true when the visitor's session also carries this same
+    // admin's login token, so this link is meaningless outside an active
+    // admin session. Falls back to ovebot.ai when there's no workspace yet
+    // (nothing to preview) or no storefront base URL configured.
     private function chatUrl($ovebotai) {
-        $workspace = $ovebotai->getWorkspace();
-        return $workspace !== '' ? 'https://' . $workspace . '.ovebot.ai/' : 'https://ovebot.ai';
+        return HTTPS_CATALOG . 'index.php?auto-open-chat=true';
     }
 
     private function pullSession($key) {

@@ -11,10 +11,79 @@
 // data building lives in the model (catalog/model/extension/module/ovebotai.php).
 class ControllerExtensionModuleOvebotai extends Controller {
 
-    // Storefront chat widget injection lands in a later phase; nothing to
-    // render yet.
-    public function index() {
-        return '';
+    // Fired by the 'catalog/controller/common/footer/after' event registered
+    // on install (see admin/model/.../ovebotai.php addEvents()) — OC's
+    // controller/after signature passes $route/$args/$output by reference so
+    // this can append markup to the already-rendered page instead of
+    // returning a value. Injects the two Ovebot.ai widget script tags right
+    // before </body>: an options push (widget appearance) and the
+    // per-workspace chat-loader.js.
+    public function index(&$route, &$args, &$output) {
+        if ((string)$this->config->get('module_ovebotai_chat_status') !== '1') {
+            return;
+        }
+        if ((string)$this->config->get('module_ovebotai_setup_complete') !== '1') {
+            return;
+        }
+
+        $workspace = (string)$this->config->get('module_ovebotai_workspace');
+        if ($workspace === '' || !preg_match('/^[a-z0-9-]+$/i', $workspace)) {
+            return;
+        }
+
+        $options = $this->widgetOptions();
+
+        $options_json = json_encode($options, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $snippet = "\n<script>\n"
+            . "  var ovebot_ai = ovebot_ai || [];\n"
+            . "  ovebot_ai.push(['chat', " . $options_json . "]);\n"
+            . "</script>\n"
+            . '<script src="https://' . $workspace . '.ovebot.ai/widget/chat-loader.js"></script>' . "\n";
+
+        if (strpos($output, '</body>') !== false) {
+            $output = str_replace('</body>', $snippet . '</body>', $output);
+        } else {
+            $output .= $snippet;
+        }
+    }
+
+    // Only the parameters this module actually collects (from the settings
+    // screen's Appearance panel) are forwarded — width/height/offset_x/
+    // z_index/auto_open have no field there so they're left at chat-loader's
+    // own defaults, except auto_open which is set below from the query
+    // string. String-valued options are passed through as-is; offset_y/
+    // proactive_delay are cast to int since chat-loader expects numbers.
+    private function widgetOptions() {
+        $widget = $this->config->get('module_ovebotai_widget');
+        $widget = is_array($widget) ? $widget : array();
+
+        $options = array();
+
+        foreach (array('subtitle', 'accent_color', 'proactive_message', 'theme', 'language', 'audio_beep', 'side') as $key) {
+            if (isset($widget[$key]) && $widget[$key] !== '') {
+                $options[$key] = (string)$widget[$key];
+            }
+        }
+
+        foreach (array('proactive_delay', 'offset_y') as $key) {
+            if (isset($widget[$key]) && $widget[$key] !== '' && is_numeric($widget[$key])) {
+                $options[$key] = (int)$widget[$key];
+            }
+        }
+
+        // The admin dashboard's "Chat with the AI agent" button links to the
+        // storefront home with ?auto-open-chat=true (see admin controller
+        // chatUrl()). Only honoured when the visitor's session also carries
+        // an active admin login token, so a public visitor can't force-open
+        // the widget for everyone just by guessing the query string.
+        if (isset($this->request->get['auto-open-chat']) && $this->request->get['auto-open-chat'] === 'true') {
+            if (!empty($this->session->data['token']) || !empty($this->session->data['user_token'])) {
+                $options['auto_open'] = 'true';
+            }
+        }
+
+        return $options;
     }
 
     // GET .../module_ovebotai/feed&hash=XXX — product feed, gated by the hash
