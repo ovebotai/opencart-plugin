@@ -312,7 +312,12 @@ class Ovebotai extends \Model {
         return $result['status'] >= 200 && $result['status'] < 300;
     }
 
-    public function buildSetupPayload() {
+    // $overrides lets a caller replace individual order_info/products fields
+    // (e.g. a freshly generated feed hash) in the payload BEFORE it's sent,
+    // without having persisted them locally yet — so a failed sync leaves the
+    // old, still-working value in config untouched. See regenerateFeedHash()/
+    // regenerateOrderCreds().
+    public function buildSetupPayload(array $overrides = array()) {
         $widget = $this->config->get('module_ovebotai_widget');
         if (!is_array($widget)) {
             $widget = array();
@@ -322,20 +327,30 @@ class Ovebotai extends \Model {
         $base     = $this->catalogBase();
         $feedHash = (string)$this->config->get('module_ovebotai_feed_hash');
 
+        $orderInfo = array(
+            'enabled'       => true,
+            'api_url'       => $base . 'index.php?route=extension/module/ovebotai/orders',
+            'api_user'      => (string)$this->config->get('module_ovebotai_order_user'),
+            'api_password'  => (string)$this->config->get('module_ovebotai_order_pass'),
+            'lookup_method' => 'email',
+        );
+        if (isset($overrides['order_info'])) {
+            $orderInfo = array_merge($orderInfo, $overrides['order_info']);
+        }
+
+        $products = array(
+            'enabled'  => true,
+            'feed_url' => $base . 'index.php?route=extension/module/ovebotai/feed&hash=' . urlencode($feedHash),
+            'currency' => (string)$this->config->get('config_currency'),
+        );
+        if (isset($overrides['products'])) {
+            $products = array_merge($products, $overrides['products']);
+        }
+
         return array(
             'widget'     => $widget ? $widget : new \stdClass(),
-            'order_info' => array(
-                'enabled'       => true,
-                'api_url'       => $base . 'index.php?route=extension/module/ovebotai/orders',
-                'api_user'      => (string)$this->config->get('module_ovebotai_order_user'),
-                'api_password'  => (string)$this->config->get('module_ovebotai_order_pass'),
-                'lookup_method' => 'email',
-            ),
-            'products'   => array(
-                'enabled'  => true,
-                'feed_url' => $base . 'index.php?route=extension/module/ovebotai/feed&hash=' . urlencode($feedHash),
-                'currency' => (string)$this->config->get('config_currency'),
-            ),
+            'order_info' => $orderInfo,
+            'products'   => $products,
         );
     }
 
@@ -477,6 +492,150 @@ class Ovebotai extends \Model {
     public function getKbCreateUrl() {
         $ws = $this->getWorkspace();
         return $ws !== '' ? 'https://' . $ws . '.ovebot.ai/knowledge-base/create' : '';
+    }
+
+    // ── Settings page data ───────────────────────────────────────────────────
+
+    public function getChatStatus() {
+        return (string)$this->config->get('module_ovebotai_chat_status') === '1';
+    }
+
+    public function getWidget() {
+        $widget = $this->config->get('module_ovebotai_widget');
+        return is_array($widget) ? $widget : array();
+    }
+
+    // The six delivery-estimate keys with the same defaults as the WordPress
+    // plugin (1–2 / 2–4 / 5–10 business days for shipped / in-stock / oos).
+    public function getDeliveryDays() {
+        $defaults = array(
+            'days_shipped_min' => 1, 'days_shipped_max' => 2,
+            'days_instock_min' => 2, 'days_instock_max' => 4,
+            'days_oos_min'     => 5, 'days_oos_max'     => 10,
+        );
+
+        $values = array();
+        foreach ($defaults as $key => $default) {
+            $stored = $this->config->get('module_ovebotai_' . $key);
+            $values[$key] = ($stored !== '' && $stored !== null) ? (int)$stored : $default;
+        }
+
+        return $values;
+    }
+
+    public function getFeedUrl() {
+        $hash = (string)$this->config->get('module_ovebotai_feed_hash');
+        return $this->catalogBase() . 'index.php?route=extension/module/ovebotai/feed&hash=' . urlencode($hash);
+    }
+
+    public function getOrderUrl() {
+        return $this->catalogBase() . 'index.php?route=extension/module/ovebotai/orders';
+    }
+
+    public function getOrderUser() {
+        return (string)$this->config->get('module_ovebotai_order_user');
+    }
+
+    public function getOrderPass() {
+        return (string)$this->config->get('module_ovebotai_order_pass');
+    }
+
+    // ── Settings page: save ──────────────────────────────────────────────────
+
+    // Chat on/off + widget appearance are always saved locally. Delivery days
+    // and the API resync are skipped while disconnected — mirrors the
+    // WordPress plugin exactly: a disconnected store can't sync anything
+    // API-dependent, so it's not even asked to try.
+    // Returns array('needs_reconnect' => bool, 'sync_error' => bool).
+    public function saveSettings($chatStatus, array $widget, array $delivery) {
+        $partial = array(
+            'module_ovebotai_chat_status' => $chatStatus ? '1' : '0',
+            'module_ovebotai_widget'      => $widget,
+        );
+
+        if (!$this->isConnected()) {
+            $this->persist($partial);
+            return array('needs_reconnect' => true, 'sync_error' => false);
+        }
+
+        foreach ($delivery as $key => $value) {
+            $partial['module_ovebotai_' . $key] = (int)$value;
+        }
+        $this->persist($partial);
+
+        return array('needs_reconnect' => false, 'sync_error' => !$this->resyncSetup());
+    }
+
+    // ── Settings page: regenerate feed hash ──────────────────────────────────
+
+    // Syncs the new feed URL to Ovebot.ai FIRST — only persisted locally once
+    // confirmed, so a failed sync leaves the old (still working) hash in place
+    // rather than clobbering it with one Ovebot.ai never received.
+    public function regenerateFeedHash() {
+        $hash = $this->randomToken(16);
+        $url  = $this->catalogBase() . 'index.php?route=extension/module/ovebotai/feed&hash=' . urlencode($hash);
+
+        $payload = $this->buildSetupPayload(array('products' => array('feed_url' => $url)));
+        $result  = $this->apiRequest('PUT', $this->setupApiPath(), $payload);
+
+        if ($result['status'] < 200 || $result['status'] >= 300) {
+            return array('success' => false);
+        }
+
+        $this->persist(array('module_ovebotai_feed_hash' => $hash));
+
+        return array('success' => true, 'hash' => $hash, 'url' => $url);
+    }
+
+    // ── Settings page: regenerate order-lookup credentials ───────────────────
+
+    // Same confirm-before-persist ordering as regenerateFeedHash().
+    public function regenerateOrderCreds() {
+        $user = $this->generateOrderUser();
+        $pass = $this->randomToken(12);
+
+        $payload = $this->buildSetupPayload(array('order_info' => array('api_user' => $user, 'api_password' => $pass)));
+        $result  = $this->apiRequest('PUT', $this->setupApiPath(), $payload);
+
+        if ($result['status'] < 200 || $result['status'] >= 300) {
+            return array('success' => false);
+        }
+
+        $this->persist(array(
+            'module_ovebotai_order_user' => $user,
+            'module_ovebotai_order_pass' => $pass,
+        ));
+
+        return array('success' => true, 'user' => $user, 'pass' => $pass);
+    }
+
+    // ── Settings page: clear feed cache ──────────────────────────────────────
+
+    // Local only, no API dependency — mirrors the WordPress plugin's cache
+    // invalidation (which just clears a transient). Bumping the version number
+    // gives the real (phase-2) feed a cache key to invalidate against once
+    // it's built.
+    public function clearFeedCache() {
+        $version = (int)$this->config->get('module_ovebotai_cache_version');
+        $this->persist(array('module_ovebotai_cache_version' => $version + 1));
+        return true;
+    }
+
+    private function randomToken($bytes) {
+        try {
+            return bin2hex(random_bytes($bytes));
+        } catch (\Exception $e) {
+            return md5(uniqid('ovebotai_', true) . microtime(true));
+        } catch (\Throwable $e) {
+            return md5(uniqid('ovebotai_', true) . microtime(true));
+        }
+    }
+
+    private function generateOrderUser() {
+        $host = preg_replace('/^www\./i', '', $this->siteDomain());
+        $slug = trim(strtolower(preg_replace('/[^a-z0-9]+/i', '_', $host)), '_');
+
+        return ($slug !== '' ? $slug : 'store') . '_' . substr($this->randomToken(4), 0, 8);
     }
 
     // Best-effort remote revoke, then clear the connection locally (tokens +

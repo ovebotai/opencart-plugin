@@ -29,7 +29,7 @@
           <span class="ovebotai-status-dot<?php echo $is_connected ? ' is-connected' : ' is-disconnected'; ?>"></span>
           <?php echo $text_connected; ?><?php echo $workspace ? ' &middot; ' . htmlspecialchars($workspace, ENT_QUOTES, 'UTF-8') : ''; ?>
           <?php if ($is_connected) { ?>
-          &middot; <a href="<?php echo $disconnect_url; ?>" data-ovebotai-confirm="<?php echo htmlspecialchars($text_confirm_disconnect, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $button_disconnect; ?></a>
+          &middot; <a href="<?php echo $disconnect_url; ?>" class="ovebotai-disconnect-link" data-ovebotai-confirm="<?php echo htmlspecialchars($text_confirm_disconnect, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $button_disconnect; ?></a>
           <?php } ?>
         </span>
       </div>
@@ -107,4 +107,7 @@
     </div>
   </div>
 </div>
+
+<script src="view/javascript/ovebotai/ovebotai.js"></script>
+
 <?php echo $footer; ?>

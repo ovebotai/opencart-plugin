@@ -12,7 +12,7 @@
 .ovebotai-wrap .button {
 	display: inline-block;
 	box-sizing: border-box;
-	padding: 7px 14px;
+	padding: 6px 14px;
 	font-size: 13px;
 	line-height: 1.4;
 	color: #2271b1;
@@ -279,7 +279,13 @@
 	text-align: left;
 }
 
-.ovebotai-notice::before {
+/* .ovebotai-save-notice (the settings page's inline save/regen feedback,
+   #oveSettingsNotice / #oveSettingsWarnings) reuses the -success/-error/
+   -warning color+icon variants below but isn't itself a .ovebotai-notice, so
+   the icon font has to be set for both base classes — otherwise the glyph
+   renders as raw tofu instead of the actual Font Awesome icon. */
+.ovebotai-notice::before,
+.ovebotai-save-notice::before {
 	font-family: FontAwesome;
 	font-size: 15px;
 	line-height: 1.4;
@@ -350,6 +356,9 @@
 .ovebotai-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #c3c4c7; flex-shrink: 0; }
 .ovebotai-status-dot.is-connected { background: #00a32a; }
 .ovebotai-status-dot.is-disconnected { background: #dba617; }
+
+.ovebotai-disconnect-link { color: #d63638; }
+.ovebotai-disconnect-link:hover { color: #b32d2e; text-decoration: underline; }
 
 .ovebotai-back-link {
 	display: inline-flex;
@@ -501,3 +510,215 @@ a.ovebotai-dash-card-wide-count:hover { text-decoration: underline; }
 
 .ovebotai-status-badge.is-active   { color: #1a6a26; background: #edfaef; border: 1px solid #b8e6c1; }
 .ovebotai-status-badge.is-inactive { color: #614200; background: #fff8e5; border: 1px solid #dba617; }
+
+/* ── Settings: base form-field styles ────────────────────────────────────── */
+/* .regular-text / .small-text / .description are WordPress core admin
+   classes the settings form still uses; OpenCart doesn't provide them, so
+   they're defined here, scoped to .ovebotai-wrap. */
+
+.ovebotai-wrap input.regular-text,
+.ovebotai-wrap select {
+	padding: 5px 8px;
+	font-size: 13px !important;
+	border: 1px solid #8c8f94;
+	border-radius: 3px;
+	background: #fff;
+	color: #2c3338;
+}
+
+.ovebotai-wrap input.small-text { width: 70px; padding: 5px 8px; font-size: 13px; border: 1px solid #8c8f94; border-radius: 3px; background: #fff; color: #2c3338; }
+
+.ovebotai-wrap .description { margin: 6px 0 0; font-size: 12px; color: #787c82; }
+
+.ovebotai-field {
+	margin-bottom: 16px;
+}
+
+.ovebotai-field:last-child { margin-bottom: 0; }
+
+.ovebotai-field > input.regular-text { width: 100%; }
+
+.ovebotai-field > label {
+	display: block;
+	font-weight: 600;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: .03em;
+	color: #50575e;
+	margin-bottom: 6px;
+}
+
+.ovebotai-field-switch {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.ovebotai-field-switch > label { margin-bottom: 0; }
+
+/* ── Toggle switch ───────────────────────────────────────────────────────── */
+
+.ovebotai-switch-wrap { display: flex; align-items: center; gap: 10px; }
+
+.ovebotai-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+.ovebotai-switch input { opacity: 0; width: 0; height: 0; }
+
+.ovebotai-switch-slider {
+	position: absolute;
+	inset: 0;
+	background: #c3c4c7;
+	border-radius: 22px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.ovebotai-switch-slider::before {
+	content: '';
+	position: absolute;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: #fff;
+	top: 3px;
+	left: 3px;
+	transition: transform 0.2s;
+}
+
+.ovebotai-switch input:checked + .ovebotai-switch-slider { background: #2271b1; }
+.ovebotai-switch input:checked + .ovebotai-switch-slider::before { transform: translateX(18px); }
+
+.ovebotai-switch-lbl { font-size: 13px; color: #50575e; }
+
+/* ── Appearance panel ────────────────────────────────────────────────────── */
+
+.ovebotai-appearance-panel { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f1; }
+
+.ovebotai-appearance-subhead {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: #8c8f94;
+	margin: 20px 0 12px;
+}
+
+.ovebotai-appearance-subhead:first-child { margin-top: 0; }
+
+.ovebotai-appearance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+.ovebotai-appearance-grid select { width: 100%; }
+
+@media (max-width: 600px) {
+	.ovebotai-appearance-grid { grid-template-columns: 1fr; }
+}
+
+.ovebotai-field-full { grid-column: 1 / -1; }
+
+.ovebotai-combo-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; }
+
+.ovebotai-combo-row select,
+.ovebotai-combo-row input.regular-text {
+	flex: 1 1 220px;
+	min-width: 0;
+	width: auto;
+}
+
+.ovebotai-combo-sub { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.ovebotai-combo-sub .small-text { width: 70px; }
+
+.ovebotai-combo-suffix { font-size: 12px; color: #787c82; white-space: nowrap; }
+
+#oveAppearanceToggle { display: inline-flex; align-items: center; gap: 8px; }
+#oveAppearanceToggleIcon { font-size: 13px; }
+
+/* ── Color input ─────────────────────────────────────────────────────────── */
+
+.ovebotai-color-wrap { display: flex; align-items: center; gap: 8px; }
+
+.ovebotai-color-wrap input[type="color"] {
+	width: 36px;
+	height: 36px;
+	padding: 2px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	cursor: pointer;
+	background: transparent;
+}
+
+/* ── URL row ─────────────────────────────────────────────────────────────── */
+
+.ovebotai-url-row { display: flex; align-items: center; gap: 6px; }
+
+.ovebotai-url-row .regular-text { flex: 1 1 auto; width: auto; min-width: 0; }
+
+.ovebotai-regen-hash-btn {
+	display: inline-flex !important;
+	align-items: center;
+	justify-content: center;
+	padding: 0 !important;
+	width: 30px;
+	height: 30px;
+	line-height: normal !important;
+}
+
+.ovebotai-readonly-url {
+	font-family: monospace;
+	font-size: 12px !important;
+	color: #50575e;
+	background: #f6f7f7 !important;
+}
+
+/* ── Delivery fields ─────────────────────────────────────────────────────── */
+
+.ovebotai-field-delivery { margin-bottom: 12px; }
+
+.ovebotai-delivery-inputs { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+
+.ovebotai-dash { color: #787c82; }
+.ovebotai-unit { font-size: 12px; color: #787c82; }
+
+/* ── Save notice (above the form) ─────────────────────────────────────────── */
+
+.ovebotai-save-notice {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	border-radius: 4px;
+	padding: 10px 14px;
+	margin-bottom: 16px;
+	font-size: 13px;
+}
+
+.ovebotai-save-notice p { margin: 0; }
+
+/* ── Save row (sticky) ───────────────────────────────────────────────────── */
+
+.ovebotai-save-row {
+	position: sticky;
+	bottom: 0;
+	padding: 10px 20px;
+	background: #fff;
+	overflow: visible;
+}
+
+/* Unsaved-changes attention pulse — a couple of expanding energy rings
+   around the Save button, so it's obvious there's something to do.
+   box-shadow spreads by the same px amount on every side regardless of
+   the button's own (wide, short) aspect ratio, unlike a transform:scale()
+   ring, which would stretch sideways more than it does up/down. */
+#oveSaveBtn.ovebotai-attn {
+	position: relative;
+	z-index: 1;
+	animation: oveSaveWave 1.8s ease-out infinite;
+}
+
+@keyframes oveSaveWave {
+	0%   { box-shadow: 0 0 0 0 rgba(34, 113, 177, 0.55), 0 0 0 0 rgba(34, 113, 177, 0.35); }
+	50%  { box-shadow: 0 0 0 10px rgba(34, 113, 177, 0), 0 0 0 0 rgba(34, 113, 177, 0.35); }
+	100% { box-shadow: 0 0 0 10px rgba(34, 113, 177, 0), 0 0 0 20px rgba(34, 113, 177, 0); }
+}
+
+
+#oveSettingsForm {
+	margin-top: 15px;
+}

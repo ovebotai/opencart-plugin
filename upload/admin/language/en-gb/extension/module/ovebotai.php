@@ -73,8 +73,91 @@ $_['text_kb_inactive']         = 'Inactive';
 
 // Settings
 $_['text_settings_heading']         = 'Settings';
-$_['text_settings_lead']            = 'Settings for the Ovebot.ai module will appear here.';
-$_['text_back']                = 'Back to dashboard';
+$_['text_back']                = 'Dashboard';
+
+// Settings — chat widget
+$_['text_widget_heading']      = 'On-site chat widget';
+$_['entry_chat_status']        = 'Show the chat bubble on your site';
+$_['text_enabled']             = 'Enabled';
+$_['text_disabled']            = 'Disabled';
+$_['help_chat_status']         = 'When enabled, the AI agent\'s chat bubble appears on every page of your site so customers can start a conversation.';
+
+// Settings — product feed
+$_['text_feed_heading']        = 'Product feed';
+$_['help_feed_intro']          = 'Ovebot.ai reads this URL periodically to keep your AI agent\'s product recommendations up to date with your catalog (stock, price, availability).';
+$_['entry_feed_url']           = 'Feed URL';
+$_['button_copy']              = 'Copy';
+$_['button_regen_hash']        = 'Regenerate hash';
+$_['button_clear_cache']       = 'Clear feed cache';
+$_['help_clear_cache']         = 'The feed is cached for performance. Clear it after major catalog changes.';
+
+// Settings — order tracking
+$_['text_orders_heading']      = 'Order tracking API';
+$_['help_orders_intro']        = 'Ovebot.ai calls this endpoint, authenticated with the credentials below, so your AI agent can answer "Where is my order?" questions with live tracking info.';
+$_['entry_order_url']          = 'Endpoint URL';
+$_['entry_api_user']           = 'API user';
+$_['entry_api_pass']           = 'API password';
+$_['button_regen_creds']       = 'Regenerate credentials';
+$_['help_regen_creds']         = 'Generates a new user/password pair. The old ones will stop working immediately.';
+
+// Settings — delivery estimate
+$_['text_delivery_heading']    = 'Delivery estimate';
+$_['help_delivery_intro']      = 'Your AI agent uses these ranges to answer "When will my order arrive?" - counted in business days, Sundays excluded. Set a realistic min&ndash;max range for each of the three order situations below.';
+$_['entry_delivery_shipped']   = 'Orders that have already shipped';
+$_['help_delivery_shipped']    = 'Counted from the day the order was shipped, until it reaches the customer.';
+$_['entry_delivery_instock']   = 'New orders - every item in stock';
+$_['help_delivery_instock']    = 'Counted from the day the order was placed - nothing to wait on before it ships.';
+$_['entry_delivery_oos']       = 'New orders - at least one item out of stock';
+$_['help_delivery_oos']        = 'Counted from the day the order was placed - includes the wait for restock before it can ship.';
+$_['text_business_days']       = 'business days';
+
+// Settings — appearance
+$_['text_appearance_heading']       = 'Appearance';
+$_['button_configure_appearance']   = 'Configure appearance';
+$_['text_look_feel']                = 'Look &amp; feel';
+$_['entry_accent_color']            = 'Accent colour';
+$_['entry_theme']                   = 'Theme';
+$_['text_theme_default']            = 'Default (light)';
+$_['text_theme_light']              = 'Light';
+$_['text_theme_dark']               = 'Dark';
+$_['entry_widget_language']         = 'Language';
+$_['text_lang_default']             = 'Default';
+$_['text_lang_auto']                = 'Auto (browser)';
+$_['entry_audio_beep']              = 'Audio beep';
+$_['text_audio_default']            = 'Default (play)';
+$_['text_audio_play']               = 'Play';
+$_['text_audio_none']               = 'None';
+$_['text_position_heading']         = 'Position on page';
+$_['entry_widget_position']         = 'Widget position';
+$_['text_position_default']         = 'Default (right)';
+$_['text_position_right']           = 'Bottom right';
+$_['text_position_left']            = 'Bottom left';
+$_['text_px_offset']                = 'px offset from bottom';
+$_['help_widget_position']          = 'Raise the offset to sit the widget above another floating button, e.g. WhatsApp.';
+$_['text_messages_heading']         = 'Messages';
+$_['entry_subtitle']                = 'Subtitle';
+$_['text_subtitle_placeholder']     = 'e.g. Usually replies in a few minutes';
+$_['help_subtitle']                 = 'Shown under the assistant\'s name in the chat header.';
+$_['entry_proactive_message']       = 'Proactive message';
+$_['text_proactive_placeholder']    = 'e.g. Need help finding something?';
+$_['text_seconds_after_load']       = 's after page load';
+$_['help_proactive_message']        = 'A short message that pops up on its own to invite visitors to chat. Leave empty to disable.';
+
+// Settings — save + AJAX messages
+$_['button_save_settings']          = 'Save settings';
+$_['text_settings_saved']           = 'Settings saved.';
+$_['text_settings_saved_reconnect'] = 'Chat settings saved. Reconnect to Ovebot.ai to sync feed and order settings.';
+$_['text_settings_sync_failed']     = 'Settings saved locally but could not sync with Ovebot.ai.';
+$_['text_feed_regenerated']         = 'Feed URL regenerated and synced with Ovebot.ai.';
+$_['text_feed_regen_failed']        = 'Could not sync with Ovebot.ai - feed hash left unchanged.';
+$_['text_creds_regenerated']        = 'Credentials regenerated and synced with Ovebot.ai.';
+$_['text_creds_regen_failed']       = 'Could not sync with Ovebot.ai - credentials left unchanged.';
+$_['text_cache_cleared']            = 'Cache cleared.';
+$_['text_saving']                   = 'Saving…';
+$_['text_confirm_regen_hash']       = 'Regenerate feed hash? The current feed URL will stop working.';
+$_['text_confirm_regen_creds']      = 'Regenerate API credentials? The current credentials will stop working immediately.';
+$_['text_confirm_clear_cache']      = 'Clear the product feed cache?';
+$_['text_copied']                   = 'Copied!';
 
 // Errors
 $_['error_permission']         = 'Warning: You do not have permission to modify the Ovebot.ai module!';

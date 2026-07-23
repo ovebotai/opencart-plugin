@@ -159,7 +159,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $this->response->setOutput($this->load->view('extension/module/ovebotai_dashboard', $data));
     }
 
-    // ── Settings (phase 2 — minimal) ─────────────────────────────────────────
+    // ── Settings ─────────────────────────────────────────────────────────────
 
     private function renderSettings() {
         $ovebotai = $this->ovebotai();
@@ -171,6 +171,20 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $data['dashboard_url']  = $this->link('extension/module/ovebotai');
         $data['disconnect_url'] = $this->link('extension/module/ovebotai/disconnect');
         $data['chat_url']       = $this->chatUrl($ovebotai);
+
+        $data['chat_status'] = $ovebotai->getChatStatus() ? 1 : 0;
+        $data['widget']      = $ovebotai->getWidget();
+        $data['delivery']    = $ovebotai->getDeliveryDays();
+
+        $data['feed_url']   = $ovebotai->getFeedUrl();
+        $data['order_url']  = $ovebotai->getOrderUrl();
+        $data['order_user'] = $ovebotai->getOrderUser();
+        $data['order_pass'] = $ovebotai->getOrderPass();
+
+        $data['save_url']        = $this->link('extension/module/ovebotai/saveSettings');
+        $data['regen_hash_url']  = $this->link('extension/module/ovebotai/regenFeedHash');
+        $data['regen_creds_url'] = $this->link('extension/module/ovebotai/regenOrderCreds');
+        $data['clear_cache_url'] = $this->link('extension/module/ovebotai/clearFeedCache');
 
         $data['success'] = $this->pullSession('success');
 
@@ -303,6 +317,139 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $this->response->setOutput(json_encode($json));
     }
 
+    // ── Settings: save (AJAX) ────────────────────────────────────────────────
+
+    public function saveSettings() {
+        $this->load->language('extension/module/ovebotai');
+
+        $json = array();
+
+        if (!$this->user->hasPermission('modify', 'extension/module/ovebotai')) {
+            $json['error'] = $this->language->get('error_permission');
+            $this->response->addHeader('Content-Type: application/json');
+            $this->response->setOutput(json_encode($json));
+            return;
+        }
+
+        $chatStatus = !empty($this->request->post['chat_status']);
+
+        // Widget appearance fields the settings form collects. Anything not in
+        // this list (width/height/offset_x/z_index) has no field in the form,
+        // so saving always drops them from module_ovebotai_widget — matches
+        // the WordPress plugin exactly (its form has the same gap).
+        $widget = array();
+        foreach (array('accent_color', 'theme', 'language', 'audio_beep', 'side', 'offset_y', 'subtitle', 'proactive_message', 'proactive_delay') as $key) {
+            if (isset($this->request->post['widget_' . $key])) {
+                $widget[$key] = (string)$this->request->post['widget_' . $key];
+            }
+        }
+
+        $delivery = array();
+        foreach (array('days_shipped_min', 'days_shipped_max', 'days_instock_min', 'days_instock_max', 'days_oos_min', 'days_oos_max') as $key) {
+            if (isset($this->request->post[$key])) {
+                $delivery[$key] = max(0, min(60, (int)$this->request->post[$key]));
+            }
+        }
+
+        $result = $this->ovebotai()->saveSettings($chatStatus, $widget, $delivery);
+
+        $json['success'] = true;
+
+        if ($result['needs_reconnect']) {
+            $json['message']         = $this->language->get('text_settings_saved_reconnect');
+            $json['needs_reconnect'] = true;
+        } else {
+            $json['message']  = $this->language->get('text_settings_saved');
+            $json['warnings'] = $result['sync_error'] ? array($this->language->get('text_settings_sync_failed')) : array();
+        }
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+
+    // ── Settings: regenerate feed hash (AJAX) ────────────────────────────────
+
+    public function regenFeedHash() {
+        $this->load->language('extension/module/ovebotai');
+
+        $json = array();
+
+        if (!$this->user->hasPermission('modify', 'extension/module/ovebotai')) {
+            $json['error'] = $this->language->get('error_permission');
+            $this->response->addHeader('Content-Type: application/json');
+            $this->response->setOutput(json_encode($json));
+            return;
+        }
+
+        $result = $this->ovebotai()->regenerateFeedHash();
+
+        if (empty($result['success'])) {
+            $json['success'] = false;
+            $json['message'] = $this->language->get('text_feed_regen_failed');
+        } else {
+            $json['success'] = true;
+            $json['hash']    = $result['hash'];
+            $json['url']     = $result['url'];
+            $json['message'] = $this->language->get('text_feed_regenerated');
+        }
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+
+    // ── Settings: regenerate order-lookup credentials (AJAX) ─────────────────
+
+    public function regenOrderCreds() {
+        $this->load->language('extension/module/ovebotai');
+
+        $json = array();
+
+        if (!$this->user->hasPermission('modify', 'extension/module/ovebotai')) {
+            $json['error'] = $this->language->get('error_permission');
+            $this->response->addHeader('Content-Type: application/json');
+            $this->response->setOutput(json_encode($json));
+            return;
+        }
+
+        $result = $this->ovebotai()->regenerateOrderCreds();
+
+        if (empty($result['success'])) {
+            $json['success'] = false;
+            $json['message'] = $this->language->get('text_creds_regen_failed');
+        } else {
+            $json['success'] = true;
+            $json['user']    = $result['user'];
+            $json['pass']    = $result['pass'];
+            $json['message'] = $this->language->get('text_creds_regenerated');
+        }
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+
+    // ── Settings: clear feed cache (AJAX) ─────────────────────────────────────
+
+    public function clearFeedCache() {
+        $this->load->language('extension/module/ovebotai');
+
+        $json = array();
+
+        if (!$this->user->hasPermission('modify', 'extension/module/ovebotai')) {
+            $json['error'] = $this->language->get('error_permission');
+            $this->response->addHeader('Content-Type: application/json');
+            $this->response->setOutput(json_encode($json));
+            return;
+        }
+
+        $this->ovebotai()->clearFeedCache();
+
+        $json['success'] = true;
+        $json['message'] = $this->language->get('text_cache_cleared');
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+
     // ── Install / uninstall ──────────────────────────────────────────────────
 
     public function install() {
@@ -344,24 +491,22 @@ class ControllerExtensionModuleOvebotai extends Controller {
         return $data;
     }
 
+    // Every non-error key the language file defines — templates get the whole
+    // set via commonData() without this list needing to be kept in sync by
+    // hand every time a key is added. error_* is excluded: those are only
+    // ever used directly via $this->language->get('error_...') in flash
+    // messages / JSON responses, never echoed by a template.
     private function languageKeys() {
-        return array(
-            'heading_title',
-            'text_home', 'text_extension',
-            'text_step_connect', 'text_step_pages', 'text_step_products', 'text_step_golive',
-            'text_connect_heading', 'text_connect_lead', 'button_connect_existing', 'button_try_free',
-            'text_pages_heading', 'text_pages_lead', 'text_no_pages',
-            'text_products_heading', 'text_products_checking', 'text_no_products', 'text_products_indexed',
-            'text_golive_heading', 'text_golive_lead',
-            'text_syncing', 'text_done_heading', 'text_done_lead',
-            'button_settings', 'button_chat', 'button_next', 'button_prev', 'button_finish', 'button_retry',
-            'text_setup_complete', 'text_error',
-            'text_dashboard_heading', 'text_dashboard_lead', 'text_connected', 'button_disconnect', 'text_confirm_disconnect',
-            'button_account', 'text_products_indexed_label', 'text_kb_heading', 'text_kb_intro',
-            'text_kb_active_count', 'text_kb_none', 'text_kb_add_one', 'text_kb_error',
-            'button_edit_on_ovebotai', 'text_kb_active', 'text_kb_inactive',
-            'text_settings_heading', 'text_settings_lead', 'text_back',
-        );
+        include DIR_LANGUAGE . $this->config->get('config_language') . '/extension/module/ovebotai.php';
+
+        $keys = array();
+        foreach ($_ as $key => $value) {
+            if (strpos($key, 'error_') !== 0) {
+                $keys[] = $key;
+            }
+        }
+
+        return $keys;
     }
 
     // ── Validation ───────────────────────────────────────────────────────────

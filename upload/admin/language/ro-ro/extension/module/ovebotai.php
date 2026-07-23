@@ -73,8 +73,91 @@ $_['text_kb_inactive']         = 'Inactiv';
 
 // Settings
 $_['text_settings_heading']         = 'Setări';
-$_['text_settings_lead']            = 'Setările pentru modulul Ovebot.ai vor apărea aici.';
-$_['text_back']                = 'Înapoi la panou';
+$_['text_back']                = 'Panou de control';
+
+// Settings — chat widget
+$_['text_widget_heading']      = 'Chat pe site';
+$_['entry_chat_status']        = 'Afișează bula de chat pe site-ul tău';
+$_['text_enabled']             = 'Activat';
+$_['text_disabled']            = 'Dezactivat';
+$_['help_chat_status']         = 'Când e activată, bula de chat a agentului AI apare pe fiecare pagină a site-ului, astfel încât clienții pot începe o conversație.';
+
+// Settings — product feed
+$_['text_feed_heading']        = 'Feed de produse';
+$_['help_feed_intro']          = 'Ovebot.ai citește periodic acest URL pentru a menține recomandările de produse ale agentului AI la zi cu catalogul tău (stoc, preț, disponibilitate).';
+$_['entry_feed_url']           = 'URL feed';
+$_['button_copy']              = 'Copiază';
+$_['button_regen_hash']        = 'Regenerează codul';
+$_['button_clear_cache']       = 'Golește cache-ul feed-ului';
+$_['help_clear_cache']         = 'Feed-ul este pus în cache pentru performanță. Golește-l după modificări majore ale catalogului.';
+
+// Settings — order tracking
+$_['text_orders_heading']      = 'API urmărire comenzi';
+$_['help_orders_intro']        = 'Ovebot.ai apelează acest endpoint, autentificat cu datele de mai jos, astfel încât agentul AI poate răspunde la întrebări de tip „Unde este comanda mea?" cu informații live de urmărire.';
+$_['entry_order_url']          = 'URL endpoint';
+$_['entry_api_user']           = 'Utilizator API';
+$_['entry_api_pass']           = 'Parolă API';
+$_['button_regen_creds']       = 'Regenerează credențialele';
+$_['help_regen_creds']         = 'Generează o nouă pereche utilizator/parolă. Cele vechi vor înceta să funcționeze imediat.';
+
+// Settings — delivery estimate
+$_['text_delivery_heading']    = 'Estimare livrare';
+$_['help_delivery_intro']      = 'Agentul tău AI folosește aceste intervale pentru a răspunde la „Când ajunge comanda mea?" - numărate în zile lucrătoare, fără duminici. Setează un interval min-max realist pentru fiecare dintre cele trei situații de mai jos.';
+$_['entry_delivery_shipped']   = 'Comenzi care au fost deja expediate';
+$_['help_delivery_shipped']    = 'Numărate din ziua expedierii comenzii, până ajunge la client.';
+$_['entry_delivery_instock']   = 'Comenzi noi - toate produsele în stoc';
+$_['help_delivery_instock']    = 'Numărate din ziua plasării comenzii - nimic de așteptat înainte de expediere.';
+$_['entry_delivery_oos']       = 'Comenzi noi - cel puțin un produs fără stoc';
+$_['help_delivery_oos']        = 'Numărate din ziua plasării comenzii - include așteptarea reaprovizionării înainte de expediere.';
+$_['text_business_days']       = 'zile lucrătoare';
+
+// Settings — appearance
+$_['text_appearance_heading']       = 'Aspect';
+$_['button_configure_appearance']   = 'Configurează aspectul';
+$_['text_look_feel']                = 'Aspect &amp; stil';
+$_['entry_accent_color']            = 'Culoare accent';
+$_['entry_theme']                   = 'Temă';
+$_['text_theme_default']            = 'Implicit (deschis)';
+$_['text_theme_light']              = 'Deschis';
+$_['text_theme_dark']               = 'Închis';
+$_['entry_widget_language']         = 'Limbă';
+$_['text_lang_default']             = 'Implicit';
+$_['text_lang_auto']                = 'Automat (browser)';
+$_['entry_audio_beep']              = 'Semnal audio';
+$_['text_audio_default']            = 'Implicit (redă)';
+$_['text_audio_play']               = 'Redă';
+$_['text_audio_none']               = 'Fără';
+$_['text_position_heading']         = 'Poziție pe pagină';
+$_['entry_widget_position']         = 'Poziția widget-ului';
+$_['text_position_default']         = 'Implicit (dreapta)';
+$_['text_position_right']           = 'Jos dreapta';
+$_['text_position_left']            = 'Jos stânga';
+$_['text_px_offset']                = 'px distanță de jos';
+$_['help_widget_position']          = 'Mărește distanța pentru a poziționa widget-ul deasupra altui buton plutitor, ex. WhatsApp.';
+$_['text_messages_heading']         = 'Mesaje';
+$_['entry_subtitle']                = 'Subtitlu';
+$_['text_subtitle_placeholder']     = 'ex. De obicei răspunde în câteva minute';
+$_['help_subtitle']                 = 'Afișat sub numele asistentului în antetul chat-ului.';
+$_['entry_proactive_message']       = 'Mesaj proactiv';
+$_['text_proactive_placeholder']    = 'ex. Ai nevoie de ajutor să găsești ceva?';
+$_['text_seconds_after_load']       = 's după încărcarea paginii';
+$_['help_proactive_message']        = 'Un mesaj scurt care apare singur pentru a invita vizitatorii la chat. Lasă gol pentru a dezactiva.';
+
+// Settings — save + AJAX messages
+$_['button_save_settings']          = 'Salvează setările';
+$_['text_settings_saved']           = 'Setări salvate.';
+$_['text_settings_saved_reconnect'] = 'Setările de chat au fost salvate. Reconectează-te la Ovebot.ai pentru a sincroniza setările de feed și comenzi.';
+$_['text_settings_sync_failed']     = 'Setările au fost salvate local, dar nu s-au putut sincroniza cu Ovebot.ai.';
+$_['text_feed_regenerated']         = 'URL-ul feed-ului a fost regenerat și sincronizat cu Ovebot.ai.';
+$_['text_feed_regen_failed']        = 'Nu s-a putut sincroniza cu Ovebot.ai - codul feed-ului a rămas neschimbat.';
+$_['text_creds_regenerated']        = 'Credențialele au fost regenerate și sincronizate cu Ovebot.ai.';
+$_['text_creds_regen_failed']       = 'Nu s-a putut sincroniza cu Ovebot.ai - credențialele au rămas neschimbate.';
+$_['text_cache_cleared']            = 'Cache golit.';
+$_['text_saving']                   = 'Se salvează…';
+$_['text_confirm_regen_hash']       = 'Regenerezi codul feed-ului? URL-ul curent al feed-ului va înceta să funcționeze.';
+$_['text_confirm_regen_creds']      = 'Regenerezi credențialele API? Cele curente vor înceta să funcționeze imediat.';
+$_['text_confirm_clear_cache']      = 'Golești cache-ul feed-ului de produse?';
+$_['text_copied']                   = 'Copiat!';
 
 // Errors
 $_['error_permission']         = 'Atenție: Nu ai permisiunea de a modifica modulul Ovebot.ai!';

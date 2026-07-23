@@ -164,6 +164,7 @@ var ovebotaiSetup = {
 };
 </script>
 
+<script src="view/javascript/ovebotai/ovebotai.js"></script>
 <script src="view/javascript/ovebotai/setup.js"></script>
 
 <?php echo $footer; ?>
