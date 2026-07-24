@@ -17,7 +17,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
     // Single Ovebotai instance shared across the request. The live-connection
     // probe in index() and the product-count read during renderDashboard() must
     // be the same object for the status call to be memoized to one request.
-    private function ovebotai() {
+    private function ovebotai(): \Ovebotai\Ovebotai {
         if ($this->ovebotaiLib === null) {
             $this->ovebotaiLib = new \Ovebotai\Ovebotai($this->registry);
         }
@@ -59,8 +59,16 @@ class ControllerExtensionModuleOvebotai extends Controller {
         // stale dashboard until the next refresh. Memoized, so the product
         // count during render reuses this same call.
         if ($this->isSetupComplete()) {
-            $this->ovebotai()->isConnectedLive();
+            if (!$this->ovebotai()->isConnectedLive()) {
+                $this->disconnect();
+            }
         }
+
+        // Pull the account's live integration status once (memoized for the
+        // rest of the request) and reconcile local flags with it — e.g. order
+        // tracking toggled off directly in the Ovebot.ai account is mirrored
+        // back into module_ovebotai_order_enabled here.
+        $this->ovebotai()->syncSettings();
 
         if (!$this->isSetupComplete()) {
             $this->renderSetup();
@@ -100,17 +108,31 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         $data = $this->commonData();
 
-        $data['pages']          = $this->model_extension_module_ovebotai->getInformationPages($language_id);
-        $data['product_counts'] = $this->model_extension_module_ovebotai->getProductCounts();
-        $data['is_connected']   = $connected ? 1 : 0;
-        $data['initial_step']   = $initial_step;
-        $data['steps_seq']      = $steps_seq;
+        // Titles come out of the DB HTML-entity-encoded (OpenCart's admin
+        // saves them that way, e.g. "About &amp; FAQ") — decode here so the
+        // .tpl's htmlspecialchars() doesn't double-encode them into
+        // "About &amp;amp; FAQ" on screen. view_url points at the page's live
+        // storefront URL, so a page that fails to sync can be checked (e.g.
+        // "not enough text content") without leaving the wizard.
+        $data['pages'] = array_map(function ($page) use ($ovebotai) {
+            $page['title']    = html_entity_decode($page['title'], ENT_QUOTES, 'UTF-8');
+            $page['view_url'] = $ovebotai->getInformationPageUrl($page['information_id']);
+            return $page;
+        }, $this->model_extension_module_ovebotai->getInformationPages($language_id));
 
-        $data['connect_url']    = $this->link('extension/module/ovebotai/connect');
-        $data['register_url']   = 'https://account.ovebot.ai/register';
-        $data['sync_url']       = $this->link('extension/module/ovebotai/sync');
-        $data['settings_url']   = $this->link('extension/module/ovebotai', '&view=settings');
-        $data['chat_url']       = $this->chatUrl($ovebotai);
+        $data['product_counts']   = $this->model_extension_module_ovebotai->getProductCounts();
+        $data['products_enabled'] = $ovebotai->getProductsEnabled() ? 1 : 0;
+        $data['setup_url']        = $ovebotai->getSetupUrl();
+        $data['is_connected']     = $connected ? 1 : 0;
+        $data['initial_step']     = $initial_step;
+        $data['steps_seq']        = $steps_seq;
+
+        $data['connect_url']     = $this->link('extension/module/ovebotai/connect');
+        $data['register_url']    = 'https://account.ovebot.ai/register';
+        $data['sync_pages_url']  = $this->link('extension/module/ovebotai/syncPages');
+        $data['sync_url']        = $this->link('extension/module/ovebotai/sync');
+        $data['settings_url']    = $this->link('extension/module/ovebotai', '&view=settings');
+        $data['chat_url']        = $this->chatUrl($ovebotai);
 
         $data['oauth_error']    = isset($this->request->get['oauth_error'])
             ? html_entity_decode($this->request->get['oauth_error'], ENT_QUOTES, 'UTF-8')
@@ -120,7 +142,9 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $data['column_left'] = $this->load->controller('common/column_left');
         $data['footer']      = $this->load->controller('common/footer');
 
-        $this->response->setOutput($this->load->view('extension/module/ovebotai_setup', $data));
+        $this->withTemplateSupport(function () use ($data) {
+            $this->response->setOutput($this->load->view('extension/module/ovebotai_setup', $data));
+        });
     }
 
     // ── Dashboard (phase 2 — minimal) ────────────────────────────────────────
@@ -130,9 +154,21 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         $data = $this->commonData();
 
+        // Account-side on/off status for the two features whose card / notice
+        // the dashboard swaps to a warning when they're disabled.
+        $data['products_recommend_enabled'] = $ovebotai->isProductRecommendationEnabled() ? 1 : 0;
+        $data['order_api_enabled']          = $ovebotai->isOrderApiEnabled() ? 1 : 0;
+        // Where the "change this in your account settings" links point.
+        $data['setup_url']                  = $ovebotai->getSetupUrl();
+
         $data['is_connected']  = $ovebotai->isConnected() ? 1 : 0;
         $data['workspace']     = $ovebotai->getWorkspace();
+        $data['agent']         = $ovebotai->getAgent();
+        $data['chat_status']   = $ovebotai->getChatStatus() ? 1 : 0;
         $data['settings_url']  = $this->link('extension/module/ovebotai', '&view=settings');
+        // Sends the settings screen straight to (and pulses) the chat toggle,
+        // so "enable it in settings" doesn't leave the merchant hunting for it.
+        $data['settings_chat_highlight_url'] = $this->link('extension/module/ovebotai', '&view=settings&highlight=oveChatStatus');
         $data['chat_url']      = $this->chatUrl($ovebotai);
         $data['disconnect_url'] = $this->link('extension/module/ovebotai/disconnect');
 
@@ -156,7 +192,9 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $data['column_left'] = $this->load->controller('common/column_left');
         $data['footer']      = $this->load->controller('common/footer');
 
-        $this->response->setOutput($this->load->view('extension/module/ovebotai_dashboard', $data));
+        $this->withTemplateSupport(function () use ($data) {
+            $this->response->setOutput($this->load->view('extension/module/ovebotai_dashboard', $data));
+        });
     }
 
     // ── Settings ─────────────────────────────────────────────────────────────
@@ -168,12 +206,17 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         $data['is_connected']   = $ovebotai->isConnected() ? 1 : 0;
         $data['workspace']      = $ovebotai->getWorkspace();
+        $data['agent']          = $ovebotai->getAgent();
         $data['dashboard_url']  = $this->link('extension/module/ovebotai');
         $data['disconnect_url'] = $this->link('extension/module/ovebotai/disconnect');
         $data['chat_url']       = $this->chatUrl($ovebotai);
 
-        $data['chat_status'] = $ovebotai->getChatStatus() ? 1 : 0;
-        $data['widget']      = $ovebotai->getWidget();
+        $data['chat_status']      = $ovebotai->getChatStatus() ? 1 : 0;
+        $data['widget']           = $ovebotai->getWidget();
+        $data['products_enabled']   = $ovebotai->getProductsEnabled() ? 1 : 0;
+        $data['products_recommend'] = $ovebotai->getProductsRecommend() ? 1 : 0;
+        $data['order_enabled']      = $ovebotai->getOrderEnabled() ? 1 : 0;
+        $data['setup_url']          = $ovebotai->getSetupUrl();
 
         $data['feed_url']   = $ovebotai->getFeedUrl();
         $data['order_url']  = $ovebotai->getOrderUrl();
@@ -190,7 +233,9 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $data['column_left'] = $this->load->controller('common/column_left');
         $data['footer']      = $this->load->controller('common/footer');
 
-        $this->response->setOutput($this->load->view('extension/module/ovebotai_settings', $data));
+        $this->withTemplateSupport(function () use ($data) {
+            $this->response->setOutput($this->load->view('extension/module/ovebotai_settings', $data));
+        });
     }
 
     // ── OAuth: start ─────────────────────────────────────────────────────────
@@ -257,9 +302,17 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $this->response->redirect($this->link('extension/module/ovebotai'));
     }
 
-    // ── Finish step (AJAX) ───────────────────────────────────────────────────
+    // ── Step 2: page sync (AJAX) ─────────────────────────────────────────────
 
-    public function sync() {
+    // Fired on every "Next" click from step 2 — sync-per-step instead of one
+    // giant sync at the end. Whatever couldn't be sent (real API error, or an
+    // intentional skip like "not enough text") comes back keyed by
+    // information_id in 'failed'; the frontend unchecks those boxes, shows the
+    // message under each, and keeps the user on step 2 for another attempt.
+    // Re-sending everything checked on every attempt is intentional — no
+    // "only send what changed" bookkeeping, so a page fixed elsewhere and
+    // re-checked just goes through normally next time.
+    public function syncPages() {
         $this->load->language('extension/module/ovebotai');
 
         $json = array();
@@ -279,16 +332,50 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $ovebotai = $this->ovebotai();
         $ovebotai->saveKbPageIds($page_ids);
 
-        $errors   = array();
-        $warnings = array();
+        $result = array('failed' => array(), 'kb_limit' => '', 'kb_limit_ids' => array());
 
         try {
-            $kb = $ovebotai->syncKbPages($page_ids, true);
-            $errors   = $kb['errors'];
-            $warnings = $kb['warnings'];
+            $result = $ovebotai->syncKbPages($page_ids, true);
         } catch (\Ovebotai\Exceptions\OvebotaiException $e) {
-            $errors[] = $e->getMessage();
+            // Couldn't even reach the API (connection/auth) — every requested
+            // page is equally "failed", same message on each.
+            foreach ($page_ids as $information_id) {
+                $result['failed'][$information_id] = $e->getMessage();
+            }
         }
+
+        $json['success']      = true;
+        $json['failed']       = $result['failed'];
+        $json['kb_limit']     = $result['kb_limit'];
+        $json['kb_limit_ids'] = $result['kb_limit_ids'];
+        $json['clean']        = !$result['failed'] && !$result['kb_limit_ids'];
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+
+    // ── Finish step (AJAX) ───────────────────────────────────────────────────
+
+    // Page sync already happened per-step (see syncPages() above), so all
+    // that's left here is the products-feed choice from step 3 (only
+    // persisted now, at Finish — see resyncSetup()) and pushing the whole
+    // /setup payload (widget language, products, order lookup credentials).
+    public function sync() {
+        $this->load->language('extension/module/ovebotai');
+
+        $json = array();
+
+        if (!$this->user->hasPermission('modify', 'extension/module/ovebotai')) {
+            $json['error'] = $this->language->get('error_permission');
+            $this->response->addHeader('Content-Type: application/json');
+            $this->response->setOutput(json_encode($json));
+            return;
+        }
+
+        $ovebotai = $this->ovebotai();
+        $ovebotai->setProductsEnabled(!empty($this->request->post['products_enabled']));
+
+        $errors = array();
 
         try {
             $resync = $ovebotai->resyncSetup();
@@ -302,14 +389,12 @@ class ControllerExtensionModuleOvebotai extends Controller {
         if (!$errors) {
             $ovebotai->markComplete();
 
-            $json['success']  = true;
-            $json['message']  = $this->language->get('text_setup_complete');
-            $json['warnings'] = $warnings;
+            $json['success'] = true;
+            $json['message'] = $this->language->get('text_setup_complete');
         } else {
-            $json['success']  = false;
-            $json['message']  = implode("\n", array_merge($errors, $warnings));
-            $json['errors']   = $errors;
-            $json['warnings'] = $warnings;
+            $json['success'] = false;
+            $json['message'] = implode("\n", $errors);
+            $json['errors']  = $errors;
         }
 
         $this->response->addHeader('Content-Type: application/json');
@@ -333,17 +418,20 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $chatStatus = !empty($this->request->post['chat_status']);
 
         // Widget appearance fields the settings form collects. Anything not in
-        // this list (width/height/offset_x/z_index) has no field in the form,
-        // so saving always drops them from module_ovebotai_widget — matches
-        // the WordPress plugin exactly (its form has the same gap).
+        // this list (width/height/offset_x) has no field in the form, so
+        // saving always drops them from module_ovebotai_widget.
         $widget = array();
-        foreach (array('accent_color', 'theme', 'language', 'audio_beep', 'side', 'offset_y', 'subtitle', 'proactive_message', 'proactive_delay') as $key) {
+        foreach (array('accent_color', 'theme', 'language', 'audio_beep', 'side', 'offset_y', 'z_index', 'subtitle', 'proactive_message', 'proactive_delay') as $key) {
             if (isset($this->request->post['widget_' . $key])) {
                 $widget[$key] = (string)$this->request->post['widget_' . $key];
             }
         }
 
-        $result = $this->ovebotai()->saveSettings($chatStatus, $widget);
+        $productsEnabled   = !empty($this->request->post['products_enabled']);
+        $orderEnabled      = !empty($this->request->post['order_enabled']);
+        $productsRecommend = !empty($this->request->post['products_recommend']);
+
+        $result = $this->ovebotai()->saveSettings($chatStatus, $widget, $productsEnabled, $orderEnabled, $productsRecommend);
 
         $json['success'] = true;
 
@@ -444,6 +532,9 @@ class ControllerExtensionModuleOvebotai extends Controller {
             $data[$key] = $this->language->get($key);
         }
 
+        // Shown across every view (setup / dashboard / settings) at the top.
+        $data['module_version'] = $this->ovebotai()->getModuleVersion();
+
         $data['breadcrumbs'] = array(
             array(
                 'text' => $this->language->get('text_home'),
@@ -497,13 +588,15 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $this->request->post['module_ovebotai_workspace']      = $this->config->get('module_ovebotai_workspace');
         $this->request->post['module_ovebotai_agent']          = $this->config->get('module_ovebotai_agent');
         $this->request->post['module_ovebotai_setup_complete'] = $this->config->get('module_ovebotai_setup_complete');
-        $this->request->post['module_ovebotai_kb_map']         = $this->config->get('module_ovebotai_kb_map');
         $this->request->post['module_ovebotai_kb_page_ids']    = $this->config->get('module_ovebotai_kb_page_ids');
         $this->request->post['module_ovebotai_chat_status']    = $this->config->get('module_ovebotai_chat_status');
         $this->request->post['module_ovebotai_feed_hash']      = $this->config->get('module_ovebotai_feed_hash');
         $this->request->post['module_ovebotai_order_user']     = $this->config->get('module_ovebotai_order_user');
         $this->request->post['module_ovebotai_order_pass']     = $this->config->get('module_ovebotai_order_pass');
         $this->request->post['module_ovebotai_widget']         = $this->config->get('module_ovebotai_widget');
+        $this->request->post['module_ovebotai_products_enabled']   = $this->config->get('module_ovebotai_products_enabled');
+        $this->request->post['module_ovebotai_order_enabled']      = $this->config->get('module_ovebotai_order_enabled');
+        $this->request->post['module_ovebotai_products_recommend'] = $this->config->get('module_ovebotai_products_recommend');
 
         return !$this->error;
     }
@@ -550,5 +643,21 @@ class ControllerExtensionModuleOvebotai extends Controller {
     private function tokenQs() {
         $key = version_compare(VERSION, '3.0', '<') ? 'token' : 'user_token';
         return $key . '=' . $this->session->data[$key];
+    }
+
+    private function withTemplateSupport($cb)
+    {
+        $isOCart3 = version_compare(VERSION, '3.0', '>');
+        if ($isOCart3) {
+            $this->config->set('template_engine', 'template');
+        }
+
+        $result = $cb();
+
+        if ($isOCart3) {
+            $this->config->set('template_engine', 'twig');
+        }
+
+        return $result;
     }
 }

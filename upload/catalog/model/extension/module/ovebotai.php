@@ -7,11 +7,6 @@
 // data building, with no OAuth/API concerns.
 class ModelExtensionModuleOvebotai extends Model {
 
-    public function getData() {
-        $query = $this->db->query("SELECT * FROM " . DB_PREFIX . "setting WHERE code = 'module_ovebotai'");
-        return $query->rows;
-    }
-
     // ── Products feed ─────────────────────────────────────────────────────────
 
     // Enabled, in-stock, priced products only — same filter as the admin

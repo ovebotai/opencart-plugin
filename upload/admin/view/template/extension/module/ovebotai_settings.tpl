@@ -20,10 +20,12 @@
             <img src="view/image/ovebotai/logo.png" alt="Ovebot.ai" height="32" onerror="this.style.display='none'">
           </a>
           <h1><?php echo $text_settings_heading; ?></h1>
+          <span class="ovebotai-version">v<?php echo $module_version; ?></span>
         </div>
         <span class="ovebotai-connection-badge">
           <span class="ovebotai-status-dot<?php echo $is_connected ? ' is-connected' : ' is-disconnected'; ?>"></span>
-          <?php echo $text_connected; ?><?php echo $workspace ? ' &middot; ' . htmlspecialchars($workspace, ENT_QUOTES, 'UTF-8') : ''; ?>
+          <?php $ovebotai_badge = $workspace ? $workspace . ':' . ($agent !== '' ? $agent : 'default') : ''; ?>
+          <?php echo $text_connected; ?><?php echo $ovebotai_badge ? ' &middot; ' . htmlspecialchars($ovebotai_badge, ENT_QUOTES, 'UTF-8') : ''; ?>
           <?php if ($is_connected) { ?>
           &middot; <a href="<?php echo $disconnect_url; ?>" class="ovebotai-disconnect-link" data-ovebotai-confirm="<?php echo htmlspecialchars($text_confirm_disconnect, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $button_disconnect; ?></a>
           <?php } ?>
@@ -72,9 +74,31 @@
           </div>
           <div class="ovebotai-fieldset-body">
 
-            <p class="description ovebotai-fieldset-intro"><?php echo $help_feed_intro; ?></p>
+            <div class="ovebotai-field ovebotai-field-switch">
+              <label><?php echo $entry_products_recommend; ?></label>
+              <div class="ovebotai-switch-wrap">
+                <label class="ovebotai-switch">
+                  <input type="checkbox" name="products_recommend" id="oveProductsRecommend" value="1"<?php echo $products_recommend ? ' checked' : ''; ?>>
+                  <span class="ovebotai-switch-slider"></span>
+                </label>
+                <span class="ovebotai-switch-lbl" id="oveProductsRecommendLbl"><?php echo $products_recommend ? $text_enabled : $text_disabled; ?></span>
+              </div>
+              <p class="description"><?php echo $help_products_recommend; ?></p>
+            </div>
 
-            <div class="ovebotai-field">
+            <div class="ovebotai-field ovebotai-field-switch">
+              <label><?php echo $entry_products_enabled; ?></label>
+              <div class="ovebotai-switch-wrap">
+                <label class="ovebotai-switch">
+                  <input type="checkbox" name="products_enabled" id="oveProductsEnabled" value="1"<?php echo $products_enabled ? ' checked' : ''; ?>>
+                  <span class="ovebotai-switch-slider"></span>
+                </label>
+                <span class="ovebotai-switch-lbl" id="oveProductsEnabledLbl"><?php echo $products_enabled ? $text_enabled : $text_disabled; ?></span>
+              </div>
+              <p class="description"><?php echo $help_products_enabled; ?><?php if ($setup_url) { ?> <a href="<?php echo $setup_url; ?>" target="_blank" rel="noopener noreferrer"><?php echo $setup_url; ?></a><?php } ?></p>
+            </div>
+
+            <div class="ovebotai-field" id="oveFeedUrlField"<?php echo $products_enabled ? '' : ' style="display:none"'; ?>>
               <label><?php echo $entry_feed_url; ?></label>
               <div class="ovebotai-url-row">
                 <input type="text" class="regular-text ovebotai-readonly-url" id="oveFeedUrl" value="<?php echo htmlspecialchars($feed_url, ENT_QUOTES, 'UTF-8'); ?>" readonly>
@@ -83,6 +107,7 @@
                   <i class="fa fa-refresh"></i>
                 </button>
               </div>
+              <p class="description ovebotai-fieldset-intro"><?php echo $help_feed_intro; ?></p>
             </div>
 
           </div>
@@ -97,6 +122,18 @@
           <div class="ovebotai-fieldset-body">
 
             <p class="description ovebotai-fieldset-intro"><?php echo $help_orders_intro; ?></p>
+
+            <div class="ovebotai-field ovebotai-field-switch">
+              <label><?php echo $entry_order_enabled; ?></label>
+              <div class="ovebotai-switch-wrap">
+                <label class="ovebotai-switch">
+                  <input type="checkbox" name="order_enabled" id="oveOrderEnabled" value="1"<?php echo $order_enabled ? ' checked' : ''; ?>>
+                  <span class="ovebotai-switch-slider"></span>
+                </label>
+                <span class="ovebotai-switch-lbl" id="oveOrderEnabledLbl"><?php echo $order_enabled ? $text_enabled : $text_disabled; ?></span>
+              </div>
+              <p class="description"><?php echo $help_order_enabled; ?></p>
+            </div>
 
             <div class="ovebotai-field">
               <label><?php echo $entry_order_url; ?></label>
@@ -134,7 +171,7 @@
         <?php
         $ovebotai_w = array_merge(array(
             'accent_color' => '', 'theme' => '', 'language' => '', 'audio_beep' => '',
-            'side' => '', 'offset_y' => '', 'subtitle' => '', 'proactive_message' => '', 'proactive_delay' => '',
+            'side' => '', 'offset_y' => '', 'z_index' => '', 'subtitle' => '', 'proactive_message' => '', 'proactive_delay' => '',
         ), $widget);
         ?>
         <div class="ovebotai-fieldset">
@@ -159,8 +196,8 @@
                 <div class="ovebotai-field">
                   <label for="ove_accent_color"><?php echo $entry_accent_color; ?></label>
                   <div class="ovebotai-color-wrap">
-                    <input type="color" id="ove_color_picker" value="<?php echo htmlspecialchars($ovebotai_w['accent_color'] !== '' ? $ovebotai_w['accent_color'] : '#2271B1', ENT_QUOTES, 'UTF-8'); ?>">
-                    <input type="text" name="widget_accent_color" id="ove_accent_color" class="regular-text" value="<?php echo htmlspecialchars($ovebotai_w['accent_color'], ENT_QUOTES, 'UTF-8'); ?>" placeholder="#2271B1" maxlength="7">
+                    <input type="color" id="ove_color_picker" value="<?php echo htmlspecialchars($ovebotai_w['accent_color'] !== '' ? $ovebotai_w['accent_color'] : '#615ED6', ENT_QUOTES, 'UTF-8'); ?>">
+                    <input type="text" name="widget_accent_color" id="ove_accent_color" class="regular-text" value="<?php echo htmlspecialchars($ovebotai_w['accent_color'], ENT_QUOTES, 'UTF-8'); ?>" placeholder="#615ED6" maxlength="7">
                   </div>
                 </div>
 
@@ -211,6 +248,12 @@
                   </div>
                 </div>
                 <p class="description"><?php echo $help_widget_position; ?></p>
+              </div>
+
+              <div class="ovebotai-field ovebotai-field-full">
+                <label for="ove_z_index"><?php echo $entry_z_index; ?></label>
+                <input type="number" name="widget_z_index" id="ove_z_index" class="regular-text" value="<?php echo htmlspecialchars($ovebotai_w['z_index'], ENT_QUOTES, 'UTF-8'); ?>" placeholder="2147483644">
+                <p class="description"><?php echo $help_z_index; ?></p>
               </div>
 
               <div class="ovebotai-appearance-subhead"><?php echo $text_messages_heading; ?></div>

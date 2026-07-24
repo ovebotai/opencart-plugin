@@ -50,10 +50,11 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
     // Only the parameters this module actually collects (from the settings
     // screen's Appearance panel) are forwarded — width/height/offset_x/
-    // z_index/auto_open have no field there so they're left at chat-loader's
-    // own defaults, except auto_open which is set below from the query
-    // string. String-valued options are passed through as-is; offset_y/
-    // proactive_delay are cast to int since chat-loader expects numbers.
+    // auto_open have no field there so they're left at chat-loader's own
+    // defaults, except auto_open which is set below from the query string.
+    // String-valued options are passed through as-is; offset_y/
+    // proactive_delay/z_index are cast to int since chat-loader expects
+    // numbers.
     private function widgetOptions() {
         $widget = $this->config->get('module_ovebotai_widget');
         $widget = is_array($widget) ? $widget : array();
@@ -66,10 +67,17 @@ class ControllerExtensionModuleOvebotai extends Controller {
             }
         }
 
-        foreach (array('proactive_delay', 'offset_y') as $key) {
+        foreach (array('proactive_delay', 'offset_y', 'z_index') as $key) {
             if (isset($widget[$key]) && $widget[$key] !== '' && is_numeric($widget[$key])) {
                 $options[$key] = (int)$widget[$key];
             }
+        }
+
+        // Only the workspace's default agent has no public_id — nothing to
+        // send there, chat-loader falls back to the default agent on its own.
+        $agent = (string)$this->config->get('module_ovebotai_agent');
+        if ($agent !== '' && $agent !== 'default') {
+            $options['agent'] = $agent;
         }
 
         // The admin dashboard's "Chat with the AI agent" button links to the
@@ -110,6 +118,13 @@ class ControllerExtensionModuleOvebotai extends Controller {
         }
 
         $this->registry->set('ovebotai_order_id', null);
+
+        // Same master switch as the widget itself (see index()): no chat on the
+        // storefront means no Ovebot scripts at all, so the purchase-conversion
+        // pixel is not injected either when chat is disabled.
+        if ((string)$this->config->get('module_ovebotai_chat_status') !== '1') {
+            return;
+        }
 
         if ((string)$this->config->get('module_ovebotai_setup_complete') !== '1') {
             return;
@@ -166,10 +181,22 @@ class ControllerExtensionModuleOvebotai extends Controller {
     public function feed() {
         ini_set('memory_limit', '-1'); // in case the catalog is large
 
+        // The chat status (module_ovebotai_chat_status) is the module's master
+        // on/off — when it's disabled the storefront widget doesn't render
+        // (see index()), and the feed is turned off in lockstep: a disabled
+        // module exposes no product data, so this 403s regardless of the hash.
+        $chatStatus = (string)$this->config->get('module_ovebotai_chat_status');
+
+        // Merchant chose "I'll provide my own feed" on the setup wizard /
+        // settings screen (module_ovebotai_products_enabled = '0') — our own
+        // feed is intentionally not the one Ovebot.ai should be reading, so
+        // it 403s here regardless of the hash, same as an invalid one.
+        $productsEnabled = (string)$this->config->get('module_ovebotai_products_enabled');
+
         $expected = (string)$this->config->get('module_ovebotai_feed_hash');
         $given    = isset($this->request->get['hash']) ? (string)$this->request->get['hash'] : '';
 
-        if ($expected === '' || !hash_equals($expected, $given)) {
+        if ($chatStatus !== '1' || $productsEnabled === '0' || $expected === '' || !hash_equals($expected, $given)) {
             $this->response->addHeader('HTTP/1.1 403 Forbidden');
             $this->response->addHeader('Content-Type: application/json');
             $this->response->setOutput(json_encode(array('error' => 'Forbidden')));
@@ -199,6 +226,25 @@ class ControllerExtensionModuleOvebotai extends Controller {
     // never includes them; estimated_delivery is always null (no delivery
     // estimate settings in this module).
     public function orders() {
+        // Two gates, both before any auth check, both answered with 403 (not
+        // 401) so Ovebot treats it as "off", not "bad credentials", and simply
+        // shows the visitor "order not found":
+        //   - chat status (module_ovebotai_chat_status): the module's master
+        //     on/off. A disabled module exposes no data at all — the widget
+        //     doesn't render (index()) and the feed 403s (feed()).
+        //   - order switch (module_ovebotai_order_enabled): the per-feature
+        //     toggle. When the merchant turns order tracking off, this endpoint
+        //     is closed even while chat still runs. Empty / never-set defaults
+        //     to on, same rule as getOrderEnabled() / the feed() check.
+        $chatOn  = (string)$this->config->get('module_ovebotai_chat_status') === '1';
+        $orderOn = (string)$this->config->get('module_ovebotai_order_enabled') !== '0';
+
+        if (!$chatOn || !$orderOn) {
+            $this->response->addHeader('HTTP/1.1 403 Forbidden');
+            $this->respondApi(false, null, 'Forbidden');
+            return;
+        }
+
         if (!$this->checkApiAuth()) {
             $this->response->addHeader('HTTP/1.1 401 Unauthorized');
             $this->response->addHeader('WWW-Authenticate: Basic realm="Ovebot.ai"');

@@ -9,32 +9,19 @@ require_once DIR_SYSTEM . 'library/ovebotai/exceptions/AuthException.php';
 require_once DIR_SYSTEM . 'library/ovebotai/client.php';
 
 use Ovebotai\Exceptions\ApiException;
-use Ovebotai\Exceptions\AuthException;
 use Ovebotai\Exceptions\OvebotaiException;
 
-// Orchestrator for everything Ovebot.ai. Extends \Model so it has full
-// registry access (config, session, db, model loading) exactly like the
-// Typesense library it's modelled on. It owns one collaborator:
-//   - $client: a dumb HTTP/OAuth transport (Client)
-// and it owns the parts the Client deliberately does not: where tokens live
-// (the `module_ovebotai` setting group), when to refresh them, and how to
-// keep the in-memory config consistent after a write within the same request.
-// The storefront-facing product feed / order lookup payloads are built by
-// ModelExtensionModuleOvebotai (catalog/model/extension/module/ovebotai.php),
-// not here.
-//
-// Loaded the same way as Typesense — the caller does
-//   require_once DIR_SYSTEM . 'library/ovebotai.php';
-//   $ovebotai = new \Ovebotai\Ovebotai($this->registry);
-// (the framework's $this->load->library() can't resolve a namespaced class, so
-// direct construction is the supported path, just like \Typesense\Typesense).
+// Orchestrator for Ovebot.ai: owns token storage/refresh and the local config,
+// delegates raw HTTP/OAuth to the dumb Client. Extends \Model for registry
+// access; construct directly ($this->load->library() can't resolve a namespace).
 class Ovebotai extends \Model {
+    // Plugin version — bump here on release; surfaced via getModuleVersion().
+    const VERSION = '1.0.0';
+
     private $client;
 
-    // Memoized body of GET /v1/integration/status for this request. That call
-    // doubles as the live connection probe (apiRequest refreshes or clears the
-    // tokens as needed), so the connection check and the product count share a
-    // single fetch. null = not fetched yet; array() = fetched but empty/failed.
+    // Memoized GET /v1/integration/status body for this request (that call also
+    // acts as the live connection probe). null = not fetched; array() = empty/failed.
     private $statusBody = null;
 
     public function __construct($registry) {
@@ -50,12 +37,14 @@ class Ovebotai extends \Model {
         );
     }
 
+    public function getModuleVersion() {
+        return self::VERSION;
+    }
+
     // ── OAuth: start ─────────────────────────────────────────────────────────
 
-    // Builds the account.ovebot.ai authorize URL and stashes the PKCE verifier
-    // in the session keyed by the one-time state, so a second "Connect" click
-    // (e.g. after abandoning a prior attempt) doesn't invalidate an earlier
-    // still-in-flight authorization.
+    // Builds the authorize URL and stashes the PKCE verifier under the one-time
+    // state, so a second Connect click doesn't kill an in-flight authorization.
     public function getAuthUrl($callbackUrl) {
         $verifier = Client::generateVerifier();
         $state    = Client::generateState();
@@ -67,9 +56,8 @@ class Ovebotai extends \Model {
 
     // ── OAuth: return ────────────────────────────────────────────────────────
 
-    // Exchanges the authorization code for tokens and persists them. Returns
-    // array('success' => true) or array('error' => '...') — never throws, so
-    // the controller can render the error inline on the connect step.
+    // Exchanges the auth code for tokens and persists them. Never throws —
+    // returns array('success' => true) or array('error' => '...') for inline display.
     public function handleCallback($code, $state) {
         $key      = 'module_ovebotai_pkce_' . $state;
         $verifier = isset($this->session->data[$key]) ? $this->session->data[$key] : '';
@@ -85,17 +73,59 @@ class Ovebotai extends \Model {
             return array('error' => $e->getMessage());
         }
 
+        // Read the old agent BEFORE storeTokens() — it may persist a new agent
+        // right away, which would otherwise mask a real agent change.
+        $previousAgent = (string)$this->config->get('module_ovebotai_agent');
+
         $this->storeTokens($response);
+        $this->syncAgentFromMe($previousAgent);
 
         return array('success' => true);
     }
 
+    // After connecting, GET /v1/me to persist the token's real bound agent (the
+    // token response's `agent` is null for the default agent). Best-effort.
+    private function syncAgentFromMe($previousAgent) {
+        try {
+            $result = $this->apiRequest('GET', '/v1/me');
+        } catch (OvebotaiException $e) {
+            return;
+        }
+
+        if ($result['status'] < 200 || $result['status'] >= 300) {
+            return;
+        }
+
+        // '' is a legit value for the default agent, so treat a MISSING `agent`
+        // key (not an empty one) as "nothing usable" and bail.
+        if (!isset($result['body']['agent'])) {
+            return;
+        }
+
+        $agent = $result['body']['agent'];
+
+        $slug = is_array($agent)
+            ? (isset($agent['public_id']) ? (string)$agent['public_id'] : '')
+            : (string)$agent;
+
+        $partial = array('module_ovebotai_agent' => $slug);
+
+        // Landed on a different agent than the wizard last finished for: the
+        // synced pages belong to the OLD agent, so force the wizard to re-run and
+        // clear the page selection (empty = all checked). The KB entries
+        // themselves are reconciled by slug against the new agent's list on sync.
+        if ((string)$previousAgent !== $slug) {
+            $partial['module_ovebotai_setup_complete'] = '0';
+            $partial['module_ovebotai_kb_page_ids']    = array();
+        }
+
+        $this->persist($partial);
+    }
+
     // ── Authenticated API with auto-refresh ──────────────────────────────────
 
-    // Every API call funnels through here so token refresh/rotation is applied
-    // uniformly. Proactive refresh first (avoid a guaranteed 401 when the
-    // 1-hour token is already past due), then one reactive refresh+retry on a
-    // 401. Rotated tokens are persisted by storeTokens() inside refresh().
+    // All API calls funnel here for uniform token refresh: proactive refresh if
+    // near expiry, then one reactive refresh+retry on a 401.
     public function apiRequest($method, $path, $body = null) {
         $expires = (int)$this->config->get('module_ovebotai_token_expires');
         if ($expires && $expires <= time() + 300) {
@@ -120,10 +150,8 @@ class Ovebotai extends \Model {
         try {
             $response = $this->client->refreshToken($refreshToken);
         } catch (OvebotaiException $e) {
-            // Refresh failed or the token family was revoked. Clear only the
-            // OAuth credentials — not workspace/agent/chat — so the storefront
-            // widget keeps working unattended; the admin will prompt for
-            // reconnect the next time someone opens the module.
+            // Refresh failed / family revoked: clear only the OAuth creds (keep
+            // workspace/agent/chat) so the widget keeps working until reconnect.
             $this->expireTokens();
             return false;
         }
@@ -134,65 +162,85 @@ class Ovebotai extends \Model {
 
     // ── Knowledge base ───────────────────────────────────────────────────────
 
-    // Single-page sync — the shape the caller asked for:
-    //   $this->ovebotai->syncKbPage($information_id);
-    // Does the "diverse operatiuni" (fetch the page, build the payload, resolve
-    // whether it's a create or an update) then forwards to the API. Throws on
-    // failure (ApiException / ConnectionException), returns the KB entry id on
-    // success, or null when the page was intentionally skipped (unpublished /
-    // too little text).
-    public function syncKbPage($information_id, $active = true) {
-        $remote = $this->fetchRemoteKbEntries();
-        return $this->syncOneKbPage((int)$information_id, $active, $remote['by_id'], $remote['by_title']);
-    }
-
-    // Bulk sync for the wizard's finish step. Fetches the remote entry list
-    // once, then syncs each page, aggregating per-page failures into 'errors'
-    // and intentional skips into 'warnings' (a warning must not block the
-    // overall "setup complete" from succeeding).
+    // Bulk sync for wizard step 2. Fetches the agent's KB list once, then syncs
+    // each page independently and returns 'failed' (id => message for pages that
+    // couldn't be activated), 'kb_limit' (quota message, shown once) and
+    // 'kb_limit_ids' (pages that hit the quota).
+    // Does NOT stop at the first kb_limit: a page that already exists (matched by
+    // slug → PUT/update) doesn't consume quota and must still go through.
     public function syncKbPages(array $information_ids, $active = true) {
-        $errors   = array();
-        $warnings = array();
+        $failed      = array();
+        $kbLimit     = '';
+        $kbLimitIds  = array();
 
         if (!$information_ids) {
-            return array('errors' => $errors, 'warnings' => $warnings);
+            return array('failed' => $failed, 'kb_limit' => $kbLimit, 'kb_limit_ids' => $kbLimitIds);
         }
 
-        $remote = $this->fetchRemoteKbEntries();
+        $remoteBySlug = $this->fetchRemoteKbSlugs();
 
         foreach ($information_ids as $information_id) {
+            $information_id = (int)$information_id;
+            $slug  = 'information-' . $information_id;
+            $kb_id = isset($remoteBySlug[$slug]) ? (int)$remoteBySlug[$slug] : 0;
+
             try {
-                $this->syncOneKbPage((int)$information_id, $active, $remote['by_id'], $remote['by_title'], $warnings);
-            } catch (OvebotaiException $e) {
-                // kb_limit_reached is a workspace quota ceiling, not a per-page
-                // failure — stop sending further pages and surface it as a
-                // warning; whatever synced up to now stands.
-                if ($e->getCode() === 409 || stripos($e->getMessage(), 'kb_limit') !== false) {
-                    $warnings[] = $e->getMessage();
-                    break;
+                if ($kb_id) {
+                    $this->updateKbPage($kb_id, $information_id, $active, $failed);
+                } elseif ($active) {
+                    $this->insertKbPage($information_id, $failed);
                 }
-                $errors[] = $e->getMessage();
+                // No slug match + being unchecked → nothing to do.
+            } catch (OvebotaiException $e) {
+                if ($e->getCode() === 409 || stripos($e->getMessage(), 'kb_limit') !== false) {
+                    $kbLimit      = $e->getMessage();
+                    $kbLimitIds[] = $information_id;
+                    continue;
+                }
+                $failed[$information_id] = $e->getMessage();
             }
         }
 
-        return array('errors' => $errors, 'warnings' => $warnings);
+        return array('failed' => $failed, 'kb_limit' => $kbLimit, 'kb_limit_ids' => $kbLimitIds);
     }
 
-    private function syncOneKbPage($information_id, $active, array $remoteById, array $remoteByTitle, array &$warnings = array()) {
-        $map   = $this->getKbMap();
-        $kb_id = isset($map[$information_id]) ? (int)$map[$information_id] : 0;
-
-        // Locally mapped id no longer exists remotely — stale mapping, treat
-        // the page as never-synced.
-        if ($kb_id && !isset($remoteById[$kb_id])) {
-            $kb_id = 0;
+    // Update an existing KB entry (matched by slug) in place.
+    private function updateKbPage($kb_id, $information_id, $active, array &$failed) {
+        $payload = $this->buildKbPayload($information_id, $active, $failed);
+        if ($payload === null) {
+            return;
         }
 
-        // Never synced and now being unchecked — nothing to deactivate.
-        if (!$active && !$kb_id) {
-            return null;
+        $result = $this->apiRequest('PUT', $this->kbApiPath() . '/' . (int)$kb_id, $payload);
+
+        // Entry deleted on Ovebot's side since the list was fetched: recreate it
+        // when activating, otherwise there's simply nothing left to deactivate.
+        if ($result['status'] === 404) {
+            if ($active) {
+                $this->insertKbPage($information_id, $failed);
+            }
+            return;
         }
 
+        $this->assertKbResult($result, $payload['title']);
+    }
+
+    // Create a new KB entry (no slug match). Only ever called when activating.
+    private function insertKbPage($information_id, array &$failed) {
+        $payload = $this->buildKbPayload($information_id, true, $failed);
+        if ($payload === null) {
+            return;
+        }
+
+        $result = $this->apiRequest('POST', $this->kbApiPath(), $payload);
+
+        $this->assertKbResult($result, $payload['title']);
+    }
+
+    // Loads the OpenCart page and builds the API payload, or returns null (and
+    // records a skip reason in $failed) when the page can't/shouldn't be synced:
+    // missing, disabled, or too little text for the API's 10-char minimum.
+    private function buildKbPayload($information_id, $active, array &$failed) {
         $page = $this->getInformationPage($information_id);
 
         if (!$page) {
@@ -200,76 +248,53 @@ class Ovebotai extends \Model {
         }
 
         if (empty($page['status']) && $active) {
-            $warnings[] = sprintf('Skipped "%s" - page is not enabled.', $page['title']);
+            $failed[$information_id] = sprintf('Skipped "%s" - page is not enabled.', $page['title']);
             return null;
         }
 
         $title = $page['title'];
         $body  = $this->buildKbBody($page);
 
-        // The API requires a body of at least 10 characters; skip pages with
-        // too little plain text (common with page-builder content that isn't
-        // stored as HTML in the description field).
         $length = function_exists('mb_strlen') ? mb_strlen($body) : strlen($body);
         if ($active && $length < 10) {
-            $warnings[] = sprintf('Skipped "%s" - not enough text content to sync (minimum 10 characters).', $title);
+            $failed[$information_id] = sprintf('Skipped "%s" - not enough text content to sync (minimum 10 characters).', $title);
             return null;
         }
 
-        // No usable id — match a remote entry with the same title before
-        // creating a new one, so a title collision reuses the same entry.
-        if ($active && !$kb_id && isset($remoteByTitle[$title])) {
-            $kb_id = (int)$remoteByTitle[$title];
-            $this->setKbMapEntry($information_id, $kb_id);
-        }
-
-        $payload = array(
-            'title'     => $title,
-            'body'      => $body,
-            'is_active' => (bool)$active,
+        return array(
+            'title'      => $title,
+            'body'       => $body,
+            'is_active'  => (bool)$active,
+            'slug'       => 'information-' . (int)$information_id,
+            'source_url' => $this->getInformationPageUrl($information_id),
         );
-
-        $result = null;
-
-        if ($kb_id) {
-            $result = $this->apiRequest('PUT', $this->kbApiPath() . '/' . $kb_id, $payload);
-            // Entry gone on Ovebot's side — recreate below (only when activating).
-            if ($active && $result['status'] === 404) {
-                $kb_id = 0;
-            }
-        }
-
-        if ($active && !$kb_id) {
-            $result = $this->apiRequest('POST', $this->kbApiPath(), $payload);
-            $new_id = isset($result['body']['id']) ? (int)$result['body']['id'] : 0;
-            if ($new_id) {
-                $kb_id = $new_id;
-                $this->setKbMapEntry($information_id, $kb_id);
-            }
-        }
-
-        if (!$result || $result['status'] < 200 || $result['status'] >= 300) {
-            $code = $result ? (int)$result['status'] : 0;
-            $errCode = isset($result['body']['error']['code']) ? $result['body']['error']['code'] : '';
-            if ($errCode === 'kb_limit_reached') {
-                $msg = isset($result['body']['error']['message']) ? $result['body']['error']['message'] : 'Knowledge base limit reached.';
-                throw new ApiException($msg, 409);
-            }
-            throw new ApiException(sprintf('Could not sync knowledge base entry for "%s".', $title), $code);
-        }
-
-        return $kb_id;
     }
 
-    // Pages through GET .../knowledge-base and returns every remote entry keyed
-    // both ways (id => title, title => id) so callers can validate local ids
-    // and match on title without a second fetch.
-    private function fetchRemoteKbEntries() {
-        $by_id    = array();
-        $by_title = array();
-        $page     = 1;
-        $fetched  = 0;
-        $total    = 0;
+    // Throws on a non-2xx KB write, mapping the API's kb_limit_reached to a 409
+    // (which syncKbPages treats as a quota hit rather than a plain failure).
+    private function assertKbResult($result, $title) {
+        if ($result['status'] >= 200 && $result['status'] < 300) {
+            return;
+        }
+
+        $errCode = isset($result['body']['error']['code']) ? $result['body']['error']['code'] : '';
+        if ($errCode === 'kb_limit_reached') {
+            $msg = isset($result['body']['error']['message']) ? $result['body']['error']['message'] : 'Knowledge base limit reached.';
+            throw new ApiException($msg, 409);
+        }
+
+        throw new ApiException(sprintf('Could not sync knowledge base entry for "%s". %s', $title, $this->apiErrorMessage($result)), (int)$result['status']);
+    }
+
+    // Fetches the agent's full KB list (paginated) as a slug => id map, so a
+    // page's deterministic slug 'information-{id}' can be matched to an existing
+    // entry. The API does NOT upsert on create, so this reconciliation is done
+    // client-side: slug match → PUT/update, no match → POST/insert.
+    private function fetchRemoteKbSlugs() {
+        $by_slug = array();
+        $page    = 1;
+        $fetched = 0;
+        $total   = 0;
 
         do {
             $result = $this->apiRequest('GET', $this->kbApiPath() . '?' . http_build_query(array(
@@ -284,11 +309,10 @@ class Ovebotai extends \Model {
             $entries = isset($result['body']['entries']) && is_array($result['body']['entries']) ? $result['body']['entries'] : array();
 
             foreach ($entries as $entry) {
-                if (!isset($entry['id'], $entry['title'])) {
+                if (!isset($entry['id'], $entry['slug'])) {
                     continue;
                 }
-                $by_id[(int)$entry['id']]        = (string)$entry['title'];
-                $by_title[(string)$entry['title']] = (int)$entry['id'];
+                $by_slug[(string)$entry['slug']] = (int)$entry['id'];
             }
 
             $total   = isset($result['body']['total']) ? (int)$result['body']['total'] : 0;
@@ -296,19 +320,13 @@ class Ovebotai extends \Model {
             $page++;
         } while ($entries && $fetched < $total);
 
-        return array('by_id' => $by_id, 'by_title' => $by_title);
+        return $by_slug;
     }
 
     // ── Setup (widget + products feed + order lookup) ────────────────────────
 
-    // Pushes the current local config to Ovebot.ai's /setup endpoint.
-    // Products/order sections are always sent (never omitted): /setup is a
-    // partial update, so omitting a section would leave Ovebot's copy stuck
-    // on its previous value.
-    // Returns array('success' => bool, 'error' => string) — 'error' is
-    // Ovebot's own validation/error message (see apiErrorMessage()), not a
-    // generic string, so a caller can surface exactly why a sync failed
-    // instead of forcing a debug session to find out.
+    // Pushes local config to /setup (partial update — products/order always sent).
+    // Returns array('success' => bool, 'error' => Ovebot's own message).
     public function resyncSetup() {
         $result = $this->apiRequest('PUT', $this->setupApiPath(), $this->buildSetupPayload());
         $success = $result['status'] >= 200 && $result['status'] < 300;
@@ -316,14 +334,8 @@ class Ovebotai extends \Model {
         return array('success' => $success, 'error' => $success ? '' : $this->apiErrorMessage($result));
     }
 
-    // Turns an apiRequest() result into a human-readable message using
-    // Ovebot's own error body, e.g.
-    //   { "error": { "message": "The given data was invalid.",
-    //                "fields": { "widget.language": ["The widget.language field is required when widget is present."] } } }
-    // becomes "The given data was invalid. The widget.language field is
-    // required when widget is present." Falls back to "HTTP <status>" when
-    // the body doesn't have the expected shape (network error, HTML error
-    // page, etc).
+    // Flattens Ovebot's error body ({error:{message, fields}}) into one readable
+    // string; falls back to "HTTP <status>" when the body isn't the expected shape.
     private function apiErrorMessage($result) {
         $body    = isset($result['body']) && is_array($result['body']) ? $result['body'] : array();
         $error   = isset($body['error']) && is_array($body['error']) ? $body['error'] : array();
@@ -346,22 +358,13 @@ class Ovebotai extends \Model {
         return $text;
     }
 
-    // $overrides lets a caller replace individual order_info/products fields
-    // (e.g. a freshly generated feed hash) in the payload BEFORE it's sent,
-    // without having persisted them locally yet — so a failed sync leaves the
-    // old, still-working value in config untouched. See regenerateFeedHash()/
-    // regenerateOrderCreds().
+    // $overrides swaps individual order_info/products fields into the payload
+    // before sending, without persisting them first (so a failed sync keeps the
+    // old, still-working value in config).
     public function buildSetupPayload(array $overrides = array()) {
-        // Ovebot's /setup 'widget' section only accepts `language` — see
-        // .tasks/oauth-api.md §5 ("setup:widget:write — Write the widget
-        // section of PUT …/setup (widget language)"; GET …/setup echoes back
-        // just {"widget":{"language":"ro"}}). The rest of
-        // module_ovebotai_widget (accent colour, theme, position, messages,
-        // ...) is local-only — for the storefront embed snippet, not this
-        // API — so it's deliberately left out here. Sending it used to leave
-        // a non-empty `widget` object without `language` whenever any other
-        // appearance field was set, which the API rejects with 422
-        // "The widget.language field is required when widget is present."
+        // /setup's widget section only accepts `language` (the rest of the widget
+        // config is local-only, for the storefront embed). Sending a widget object
+        // without language → 422.
         $widgetConfig = $this->config->get('module_ovebotai_widget');
         $widgetConfig = is_array($widgetConfig) ? $widgetConfig : array();
         $language     = (isset($widgetConfig['language']) && $widgetConfig['language'] !== '') ? (string)$widgetConfig['language'] : 'auto';
@@ -375,7 +378,7 @@ class Ovebotai extends \Model {
         $feedHash = (string)$this->config->get('module_ovebotai_feed_hash');
 
         $orderInfo = array(
-            'enabled'       => true,
+            'enabled'       => $this->getOrderEnabled(),
             'api_url'       => $base . 'index.php?route=extension/module/ovebotai/orders',
             'api_user'      => (string)$this->config->get('module_ovebotai_order_user'),
             'api_password'  => (string)$this->config->get('module_ovebotai_order_pass'),
@@ -385,30 +388,37 @@ class Ovebotai extends \Model {
             $orderInfo = array_merge($orderInfo, $overrides['order_info']);
         }
 
-        $products = array(
-            'enabled'  => true,
-            'feed_url' => $base . 'index.php?route=extension/module/ovebotai/feed&hash=' . urlencode($feedHash),
-            'currency' => (string)$this->config->get('config_currency'),
+        $payload = array(
+            'widget'     => $widget,
+            'order_info' => $orderInfo,
         );
+
+        // products.enabled mirrors the account recommendation master
+        // (module_ovebotai_products_recommend) and is always sent. feed_url +
+        // currency only when OUR feed is the source; for a merchant's own feed we
+        // send `enabled` alone (the API keeps their feed_url).
+        $products = array('enabled' => $this->getProductsRecommend());
+
+        if ($this->getProductsEnabled()) {
+            $products['feed_url'] = $base . 'index.php?route=extension/module/ovebotai/feed&hash=' . urlencode($feedHash);
+            $products['currency'] = (string)$this->config->get('config_currency');
+        }
+
         if (isset($overrides['products'])) {
             $products = array_merge($products, $overrides['products']);
         }
 
-        return array(
-            'widget'     => $widget,
-            'order_info' => $orderInfo,
-            'products'   => $products,
-        );
+        $payload['products'] = $products;
+
+        return $payload;
     }
 
-    // Persists the wizard's page selection so a later re-run of the wizard (or
-    // a settings screen) shows the same boxes ticked.
+    // Persists the wizard's page selection so a re-run shows the same boxes ticked.
     public function saveKbPageIds(array $information_ids) {
         $this->persist(array('module_ovebotai_kb_page_ids' => array_values(array_map('intval', $information_ids))));
     }
 
-    // Flips the two flags that make isSetupComplete() true and turn the
-    // storefront chat on. Called only after the finish step actually succeeded.
+    // Flips setup_complete + chat_status on. Called only after finish succeeds.
     public function markComplete() {
         $this->persist(array(
             'module_ovebotai_setup_complete' => '1',
@@ -422,24 +432,18 @@ class Ovebotai extends \Model {
         return (bool)$this->config->get('module_ovebotai_refresh_token') && $this->getWorkspace() !== '';
     }
 
-    // A stored refresh token only tells us we once connected — it can't know
-    // the token was revoked server-side. This makes one lightweight call
-    // (piggybacking apiRequest's refresh logic) so a lapsed connection is
-    // caught on the page load that displays it, not a later action. The probe
-    // is memoized, so calling this before routing AND reading the product
-    // count during render is still a single API request.
+    // A stored refresh token can't tell us it was revoked server-side, so make
+    // one memoized integration/status probe to catch a lapsed connection now.
     public function isConnectedLive() {
-        if (!$this->isConnected()) {
+        if (!$this->isConnected() || !$this->integrationStatus()) {
             return false;
         }
-        $this->integrationStatus();
+
         return $this->isConnected();
     }
 
-    // Fetches GET /v1/integration/status once per request and caches the body.
-    // Setting the cache before returning (even to array()) means a revoked
-    // token that gets cleared mid-call still counts as "fetched", so no caller
-    // re-issues the request.
+    // Fetches GET /v1/integration/status once per request and caches it (even to
+    // array()), so a cleared/revoked token still counts as "fetched".
     private function integrationStatus() {
         if ($this->statusBody !== null) {
             return $this->statusBody;
@@ -458,10 +462,6 @@ class Ovebotai extends \Model {
         return $this->statusBody;
     }
 
-    public function test() {
-        return $this->client->setAccessToken((string)$this->config->get('module_ovebotai_access_token'))->test();
-    }
-
     public function getWorkspace() {
         $workspace = (string)$this->config->get('module_ovebotai_workspace');
         return preg_match('/^[a-z0-9-]+$/i', $workspace) ? $workspace : '';
@@ -474,11 +474,8 @@ class Ovebotai extends \Model {
 
     // ── Dashboard data (live from Ovebot.ai) ─────────────────────────────────
 
-    // How many products Ovebot.ai actually has indexed for this agent — the
-    // count on *their* side, not the local feed count we send. Reads the
-    // memoized status body (see integrationStatus), so it reuses the probe made
-    // during routing instead of issuing a second call. Best-effort: a non-2xx
-    // (or disconnected) yields 0, since the card is informational.
+    // Product count on Ovebot's side (from the memoized status body). Best-effort:
+    // 0 when non-2xx / disconnected.
     public function getIndexedProductCount() {
         $body = $this->integrationStatus();
 
@@ -487,11 +484,8 @@ class Ovebotai extends \Model {
             : 0;
     }
 
-    // The agent's knowledge base as Ovebot.ai currently holds it — the actual
-    // state, not just what this store has attempted to sync. Returns
-    //   array('entries' => [...], 'error' => bool)
-    // where each entry is title / is_active / edit_url. On a failed fetch,
-    // 'error' is true and 'entries' is empty so the view can show a notice.
+    // The agent's KB as Ovebot currently holds it. Returns array('entries' => [...],
+    // 'error' => bool); each entry is title / is_active / edit_url.
     public function getKbEntries() {
         if (!$this->isConnected()) {
             return array('entries' => array(), 'error' => false);
@@ -523,9 +517,8 @@ class Ovebotai extends \Model {
         return array('entries' => $entries, 'error' => false);
     }
 
-    // Workspace-scoped URLs on ovebot.ai for the dashboard's outbound links.
-    // Empty string when there's no valid workspace, so the caller can hide the
-    // link rather than point at a broken host.
+    // Workspace-scoped ovebot.ai URLs for the dashboard links; '' when there's no
+    // valid workspace, so the caller can hide a broken link.
     public function getAccountUrl() {
         $ws = $this->getWorkspace();
         return $ws !== '' ? 'https://' . $ws . '.ovebot.ai' : '';
@@ -541,10 +534,91 @@ class Ovebotai extends \Model {
         return $ws !== '' ? 'https://' . $ws . '.ovebot.ai/knowledge-base/create' : '';
     }
 
+    // Where "I'll provide my own feed" sends the merchant to configure products.
+    public function getSetupUrl() {
+        $ws = $this->getWorkspace();
+        return $ws !== '' ? 'https://' . $ws . '.ovebot.ai/setup' : '';
+    }
+
     // ── Settings page data ───────────────────────────────────────────────────
 
     public function getChatStatus() {
         return (string)$this->config->get('module_ovebotai_chat_status') === '1';
+    }
+
+    // Whether OUR integrated feed is the source Ovebot reads. Default (never set)
+    // = true. When false, feed() 403s and /setup omits our feed so the merchant's
+    // own Ovebot-side config takes over.
+    public function getProductsEnabled() {
+        $raw = $this->config->get('module_ovebotai_products_enabled');
+        return $raw === null || $raw === '' ? true : ($raw === '1' || $raw === 1 || $raw === true);
+    }
+
+    public function setProductsEnabled($enabled) {
+        $this->persist(array('module_ovebotai_products_enabled' => $enabled ? '1' : '0'));
+    }
+
+    // Local mirror of the account's products.enabled (recommendation master): the
+    // switch writes here + pushes via buildSetupPayload, syncSettings pulls it
+    // back. Default never-set = on.
+    public function getProductsRecommend() {
+        $raw = $this->config->get('module_ovebotai_products_recommend');
+        return $raw === null || $raw === '' ? true : ($raw === '1' || $raw === 1 || $raw === true);
+    }
+
+    public function setProductsRecommend($enabled) {
+        $this->persist(array('module_ovebotai_products_recommend' => $enabled ? '1' : '0'));
+    }
+
+    // Local mirror of the account's order_info.enabled: the switch writes here +
+    // pushes via buildSetupPayload, syncSettings pulls it back. Default never-set = on.
+    public function getOrderEnabled() {
+        $raw = $this->config->get('module_ovebotai_order_enabled');
+        return $raw === null || $raw === '' ? true : ($raw === '1' || $raw === 1 || $raw === true);
+    }
+
+    public function setOrderEnabled($enabled) {
+        $this->persist(array('module_ovebotai_order_enabled' => $enabled ? '1' : '0'));
+    }
+
+    // The 'integration' object from the memoized status body ({products,
+    // order_info, counts, ...}); empty array when disconnected / fetch failed.
+    public function getIntegration() {
+        $body = $this->integrationStatus();
+        return isset($body['integration']) && is_array($body['integration']) ? $body['integration'] : array();
+    }
+
+    // Whether product recommendation is on in the account. Absent (disconnected /
+    // fetch failed) is treated as ON so the dashboard doesn't flash a false warning.
+    public function isProductRecommendationEnabled() {
+        $integration = $this->getIntegration();
+        return !isset($integration['products']) || !empty($integration['products']);
+    }
+
+    // Whether order lookup is on in the account. Same "absent = on" rule as above.
+    public function isOrderApiEnabled() {
+        $integration = $this->getIntegration();
+        return !isset($integration['order_info']) || !empty($integration['order_info']);
+    }
+
+    // Reconciles the local order / product switches with the account's live state
+    // (read on the dashboard), so a change made on either side stays truthful.
+    public function syncSettings() {
+        $integration = $this->getIntegration();
+
+        if (isset($integration['order_info'])) {
+            $remote = !empty($integration['order_info']);
+            if ($remote !== $this->getOrderEnabled()) {
+                $this->setOrderEnabled($remote);
+            }
+        }
+
+        if (isset($integration['products'])) {
+            $remote = !empty($integration['products']);
+            if ($remote !== $this->getProductsRecommend()) {
+                $this->setProductsRecommend($remote);
+            }
+        }
     }
 
     public function getWidget() {
@@ -555,6 +629,11 @@ class Ovebotai extends \Model {
     public function getFeedUrl() {
         $hash = (string)$this->config->get('module_ovebotai_feed_hash');
         return $this->catalogBase() . 'index.php?route=extension/module/ovebotai/feed&hash=' . urlencode($hash);
+    }
+
+    // Public storefront URL for one information page (wizard step 2 "View page").
+    public function getInformationPageUrl($information_id) {
+        return $this->catalogBase() . 'index.php?route=information/information&information_id=' . (int)$information_id;
     }
 
     public function getOrderUrl() {
@@ -571,15 +650,15 @@ class Ovebotai extends \Model {
 
     // ── Settings page: save ──────────────────────────────────────────────────
 
-    // Chat on/off + widget appearance are always saved locally. The API
-    // resync is skipped while disconnected — mirrors the WordPress plugin
-    // exactly: a disconnected store can't sync anything API-dependent, so
-    // it's not even asked to try.
-    // Returns array('needs_reconnect' => bool, 'sync_error' => bool).
-    public function saveSettings($chatStatus, array $widget) {
+    // Saves chat + widget + switches locally, then pushes to /setup when connected
+    // (skipped while disconnected). Returns needs_reconnect / sync_error.
+    public function saveSettings($chatStatus, array $widget, $productsEnabled = true, $orderEnabled = true, $productsRecommend = true) {
         $partial = array(
-            'module_ovebotai_chat_status' => $chatStatus ? '1' : '0',
-            'module_ovebotai_widget'      => $widget,
+            'module_ovebotai_chat_status'        => $chatStatus ? '1' : '0',
+            'module_ovebotai_widget'             => $widget,
+            'module_ovebotai_products_enabled'   => $productsEnabled ? '1' : '0',
+            'module_ovebotai_order_enabled'      => $orderEnabled ? '1' : '0',
+            'module_ovebotai_products_recommend' => $productsRecommend ? '1' : '0',
         );
 
         if (!$this->isConnected()) {
@@ -600,9 +679,8 @@ class Ovebotai extends \Model {
 
     // ── Settings page: regenerate feed hash ──────────────────────────────────
 
-    // Syncs the new feed URL to Ovebot.ai FIRST — only persisted locally once
-    // confirmed, so a failed sync leaves the old (still working) hash in place
-    // rather than clobbering it with one Ovebot.ai never received.
+    // Syncs the new feed URL to Ovebot FIRST, persists locally only on success,
+    // so a failed sync leaves the old (working) hash in place.
     public function regenerateFeedHash() {
         $hash = $this->randomToken(16);
         $url  = $this->catalogBase() . 'index.php?route=extension/module/ovebotai/feed&hash=' . urlencode($hash);
@@ -641,14 +719,27 @@ class Ovebotai extends \Model {
         return array('success' => true, 'user' => $user, 'pass' => $pass);
     }
 
+    // random_bytes needs PHP 7+; calling an undefined function is an
+    // uncatchable fatal on PHP 5 (there's no Throwable and nothing ever
+    // throws), so this must check function_exists() rather than try/catch.
     private function randomToken($bytes) {
-        try {
-            return bin2hex(random_bytes($bytes));
-        } catch (\Exception $e) {
-            return md5(uniqid('ovebotai_', true) . microtime(true));
-        } catch (\Throwable $e) {
-            return md5(uniqid('ovebotai_', true) . microtime(true));
+        if (function_exists('random_bytes')) {
+            try {
+                return bin2hex(random_bytes($bytes));
+            } catch (\Exception $e) {
+                // fall through to the weaker fallback below
+            }
         }
+
+        if (function_exists('openssl_random_pseudo_bytes')) {
+            $strong = false;
+            $result = openssl_random_pseudo_bytes($bytes, $strong);
+            if ($result !== false) {
+                return bin2hex($result);
+            }
+        }
+
+        return md5(uniqid('ovebotai_', true) . microtime(true));
     }
 
     private function generateOrderUser() {
@@ -658,15 +749,9 @@ class Ovebotai extends \Model {
         return ($slug !== '' ? $slug : 'store') . '_' . substr($this->randomToken(4), 0, 8);
     }
 
-    // Best-effort remote revoke, then clear the connection locally (tokens +
-    // workspace/agent). We deliberately KEEP module_ovebotai_setup_complete:
-    // a store that already finished the wizard once shouldn't be walked
-    // through it again after a disconnect. While disconnected, isConnected()/
-    // isSetupComplete() are still false (refresh_token + workspace are empty),
-    // so the reconnect screen (wizard step 1) shows; but once OAuth restores
-    // the tokens + workspace, setup_complete being '1' routes straight back to
-    // the dashboard instead of re-running steps 2–4. The KB map, feed hash and
-    // order credentials are likewise left intact for the same reason.
+    // Best-effort remote revoke, then clear tokens + workspace locally. Keeps
+    // setup_complete / KB map / feed hash / order creds / agent so a reconnect
+    // goes straight back to the dashboard (and syncAgentFromMe can spot an agent change).
     public function disconnect() {
         try {
             $this->client->setAccessToken((string)$this->config->get('module_ovebotai_access_token'))
@@ -680,7 +765,6 @@ class Ovebotai extends \Model {
             'module_ovebotai_refresh_token' => '',
             'module_ovebotai_token_expires' => '',
             'module_ovebotai_workspace'     => '',
-            'module_ovebotai_agent'         => '',
         ));
     }
 
@@ -696,16 +780,16 @@ class Ovebotai extends \Model {
             $partial['module_ovebotai_refresh_token'] = (string)$response['refresh_token'];
         }
 
-        // Strict slug format only — this value is concatenated into script-src
-        // hosts on the storefront, so a value that fails the check is simply
-        // not stored rather than trusted as a hostname part.
+        // Strict slug only — this is concatenated into storefront script-src hosts.
         if (!empty($response['workspace']['slug']) && preg_match('/^[a-z0-9-]+$/i', $response['workspace']['slug'])) {
             $partial['module_ovebotai_workspace'] = $response['workspace']['slug'];
         }
 
+        // '' (not 'default') for the default agent; syncAgentFromMe resolves the
+        // real value right after. Only matters if the response carries an agent.
         if (isset($response['agent'])) {
             $partial['module_ovebotai_agent'] = is_array($response['agent'])
-                ? (isset($response['agent']['slug']) ? $response['agent']['slug'] : 'default')
+                ? (isset($response['agent']['public_id']) ? (string)$response['agent']['public_id'] : '')
                 : (string)$response['agent'];
         }
 
@@ -720,12 +804,8 @@ class Ovebotai extends \Model {
         ));
     }
 
-    // Read-merge-write against the `module_ovebotai` setting group. editSetting
-    // REPLACES the whole group, so a partial write must merge into the current
-    // stored settings first, or every other key would be wiped. Also mirrors
-    // the change into the live $this->config (editSetting doesn't refresh it)
-    // and into the Client, so any further work in this same request sees the
-    // new values.
+    // Read-merge-write the `module_ovebotai` setting group (editSetting replaces
+    // the whole group), and mirror changes into live $this->config + the Client.
     private function persist(array $partial) {
         $this->load->model('setting/setting');
 
@@ -740,19 +820,6 @@ class Ovebotai extends \Model {
         if (isset($partial['module_ovebotai_access_token'])) {
             $this->client->setAccessToken($partial['module_ovebotai_access_token']);
         }
-    }
-
-    // ── KB id mapping (information_id => remote kb entry id) ──────────────────
-
-    private function getKbMap() {
-        $map = $this->config->get('module_ovebotai_kb_map');
-        return is_array($map) ? $map : array();
-    }
-
-    private function setKbMapEntry($information_id, $kb_id) {
-        $map = $this->getKbMap();
-        $map[(int)$information_id] = (int)$kb_id;
-        $this->persist(array('module_ovebotai_kb_map' => $map));
     }
 
     // ── Information page content ─────────────────────────────────────────────
@@ -773,9 +840,11 @@ class Ovebotai extends \Model {
             return null;
         }
 
+        // OpenCart stores titles/descriptions HTML-entity-encoded; decode so the
+        // API gets real text, not entity soup.
         return array(
             'status' => (int)$query->row['status'],
-            'title'  => (string)$query->row['title'],
+            'title'  => html_entity_decode((string)$query->row['title'], ENT_QUOTES, 'UTF-8'),
             'body'   => (string)$query->row['description'],
         );
     }

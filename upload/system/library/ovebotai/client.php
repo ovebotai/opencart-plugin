@@ -2,24 +2,17 @@
 
 namespace Ovebotai;
 
-use Ovebotai\Exceptions\ApiException;
 use Ovebotai\Exceptions\AuthException;
 use Ovebotai\Exceptions\ConnectionException;
 
-// Thin transport layer for Ovebot.ai — pure HTTP with no knowledge of where
-// tokens are stored or how they're persisted. It holds one access token in
-// memory (for the duration of a request) and speaks two hosts:
-//   - account host: the OAuth authorize/token endpoints
-//   - api host:     the authenticated /v1/* API
-// Token *lifecycle* (proactive refresh, rotation, persistence to the setting
-// table) lives one level up in the Ovebotai orchestrator, mirroring how the
-// Typesense library keeps its Client dumb and its Model smart.
+// Thin transport for Ovebot.ai: pure HTTP, no knowledge of where tokens are
+// stored. Holds one access token in memory and speaks the account host (OAuth)
+// and the api host (/v1/*). Token lifecycle lives in the Ovebotai orchestrator.
 class Client {
     const DEFAULT_ACCOUNT_HOST = 'account.ovebot.ai';
     const DEFAULT_API_HOST     = 'api.ovebot.ai';
 
-    // Same scope set the WordPress plugin requests, so a workspace connected
-    // from either platform ends up with identical grants.
+    // Same scopes as the WordPress plugin, so grants match across platforms.
     const SCOPES = 'workspaces:read setup:widget:write setup:products:write setup:order-info:write kb:write';
 
     private $accountHost;
@@ -39,27 +32,37 @@ class Client {
 
     // ── PKCE / authorization URL ─────────────────────────────────────────────
 
-    // Cryptographically random code_verifier. random_bytes needs PHP 7+; the
-    // fallback keeps this from fataling on an older OpenCart 2.3 host still on
-    // PHP 5.6 (the connect step just gets a weaker verifier there).
+    // Random code_verifier. random_bytes/random_compat needs PHP 7+ (or the
+    // random_compat polyfill); calling a function that doesn't exist at all is
+    // an uncatchable fatal on PHP 5 (no Throwable, and there's nothing to
+    // catch — the call never returns), so this must check function_exists()
+    // rather than rely on try/catch.
     public static function generateVerifier() {
-        try {
-            return self::b64url(random_bytes(48));
-        } catch (\Exception $e) {
-            return self::b64url(hash('sha256', uniqid('ove', true) . microtime(true), true));
-        } catch (\Throwable $e) {
-            return self::b64url(hash('sha256', uniqid('ove', true) . microtime(true), true));
-        }
+        return self::b64url(self::randomBytes(48));
     }
 
     public static function generateState() {
-        try {
-            return bin2hex(random_bytes(8));
-        } catch (\Exception $e) {
-            return substr(md5(uniqid('ove', true)), 0, 16);
-        } catch (\Throwable $e) {
-            return substr(md5(uniqid('ove', true)), 0, 16);
+        return bin2hex(self::randomBytes(8));
+    }
+
+    private static function randomBytes($bytes) {
+        if (function_exists('random_bytes')) {
+            try {
+                return random_bytes($bytes);
+            } catch (\Exception $e) {
+                // fall through to the weaker fallback below
+            }
         }
+
+        if (function_exists('openssl_random_pseudo_bytes')) {
+            $strong = false;
+            $result = openssl_random_pseudo_bytes($bytes, $strong);
+            if ($result !== false) {
+                return $result;
+            }
+        }
+
+        return hash('sha256', uniqid('ove', true) . microtime(true), true);
     }
 
     public function buildAuthUrl($siteDomain, $callbackUrl, $verifier, $state) {
@@ -77,9 +80,8 @@ class Client {
 
     // ── Token endpoints ──────────────────────────────────────────────────────
 
-    // Returns the decoded token payload (access_token, refresh_token,
-    // expires_in, workspace, agent, …). Throws AuthException on any failure —
-    // the caller can't proceed without tokens, so there's nothing to return.
+    // Returns the decoded token payload (access_token, refresh_token, workspace,
+    // agent, …). Throws AuthException on failure — nothing to return without tokens.
     public function exchangeCode($code, $verifier) {
         return $this->tokenRequest(array(
             'grant_type'    => 'authorization_code',
@@ -119,10 +121,8 @@ class Client {
 
     // ── Authenticated API ────────────────────────────────────────────────────
 
-    // Single round trip against the API host using whatever access token this
-    // client currently holds. Returns array('status' => int, 'body' => array)
-    // — no refresh/retry here; that's the orchestrator's job so it can persist
-    // rotated tokens.
+    // One round trip against the API host with the current token. No refresh/retry
+    // here — that's the orchestrator's job (so it can persist rotated tokens).
     public function apiRequest($method, $path, $body = null) {
         $headers = array(
             'Authorization: Bearer ' . $this->accessToken,
@@ -136,25 +136,6 @@ class Client {
         }
 
         return $this->request($method, 'https://' . $this->apiHost . $path, $headers, $payload);
-    }
-
-    // Lightweight connectivity/credentials probe used both by the settings
-    // "test connection" affordance and internally. Returns true when the token
-    // is accepted, false when it's rejected (401/403); a transport failure
-    // still throws, because "couldn't reach Ovebot.ai" is not the same answer
-    // as "your token is invalid".
-    public function test() {
-        $result = $this->apiRequest('GET', '/v1/integration/status');
-
-        if ($result['status'] >= 200 && $result['status'] < 300) {
-            return true;
-        }
-
-        if ($result['status'] === 401 || $result['status'] === 403) {
-            return false;
-        }
-
-        throw new ApiException('Unexpected response from Ovebot.ai (HTTP ' . $result['status'] . ').', $result['status']);
     }
 
     // ── Low-level HTTP ───────────────────────────────────────────────────────

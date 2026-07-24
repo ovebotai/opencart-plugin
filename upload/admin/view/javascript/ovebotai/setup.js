@@ -59,15 +59,21 @@
 
 		// Last content step before Finish: relabel Next to "Finish setup".
 		if (step === finishStep) {
-			$('#oveNextBtn').text(cfg.i18n.finish);
+			$('#oveNextBtn').text(cfg.i18n.finish + ' →');
 			if (step === 3) { updateProductMessage(); }
 		} else {
-			$('#oveNextBtn').text(cfg.i18n.next);
+			$('#oveNextBtn').text(cfg.i18n.next + ' →');
 		}
 	}
 
 	function handleNext() {
 		if (navigating) { return; }
+
+		if (current === 2) {
+			syncPages();
+			return;
+		}
+
 		navigating = true;
 		setTimeout(function () { navigating = false; }, 500);
 
@@ -103,6 +109,103 @@
 		$('#oveProductMsg').html('<span class="ovebotai-count-badge">' + counts.feed_count + '</span> ' + cfg.i18n.productsWillBeIndexed);
 	}
 
+	// ── Step 2: page sync ────────────────────────────────────────────────────
+
+	// Fires on every "Next" click from step 2. Whatever the server reports as
+	// unsent (real error, or blocked by the kb_limit quota) gets unchecked and
+	// flagged inline; the button stays put on step 2 in that case, so the same
+	// click that "failed" is really just a cleanup pass — the very next click
+	// (now with those boxes unchecked) goes through and advances normally.
+	function syncPages() {
+		navigating = true;
+
+		$('.ovebotai-page-error').hide().text('').removeClass('is-success');
+		$('#oveKbLimitNotice').hide().text('');
+
+		var pageIds = [];
+		$('input[name="kb_pages[]"]:checked').each(function () {
+			pageIds.push($(this).val());
+		});
+
+		$('#oveNextBtn').prop('disabled', true).text(cfg.i18n.syncingPages);
+		$('#ovePrevBtn').prop('disabled', true);
+
+		$.ajax({
+			url: cfg.syncPagesUrl,
+			type: 'POST',
+			dataType: 'json',
+			data: { page_ids: pageIds }
+		})
+			.done(function (resp) {
+				navigating = false;
+				$('#oveNextBtn').prop('disabled', false);
+				$('#ovePrevBtn').prop('disabled', false);
+
+				if (!resp || !resp.success) {
+					$('#oveKbLimitNotice').text(cfg.i18n.error).show();
+					renderStep(2);
+					return;
+				}
+
+				applyPageFailures(resp.failed || {});
+				applyPageFailures(indexKbLimitIds(resp.kb_limit_ids || []));
+
+				if (resp.kb_limit) {
+					$('#oveKbLimitNotice').text(resp.kb_limit).show();
+				}
+
+				if (resp.clean) {
+					renderStep(3);
+				} else {
+					// Stay on step 2 — checkboxes are already cleaned up above.
+					// Whatever's still checked out of this attempt actually went
+					// through fine — flag it green so it reads as "this one's
+					// done", not lumped in with the failures above.
+					var failedIds = Object.keys(resp.failed || {}).concat((resp.kb_limit_ids || []).map(String));
+					var succeededIds = pageIds.filter(function (id) { return failedIds.indexOf(id) === -1; });
+					applyPageSuccess(succeededIds);
+					renderStep(2);
+				}
+			})
+			.fail(function () {
+				navigating = false;
+				$('#oveNextBtn').prop('disabled', false);
+				$('#ovePrevBtn').prop('disabled', false);
+				$('#oveKbLimitNotice').text(cfg.i18n.error).show();
+			});
+	}
+
+	// kb_limit_ids has no per-page message of its own (it's the same quota
+	// error for all of them). The banner shows the API's message exactly as
+	// received (see the caller) — under each affected checkbox this uses its
+	// own separate, static string instead of altering/reusing that API text.
+	function indexKbLimitIds(ids) {
+		var map = {};
+		ids.forEach(function (id) {
+			map[id] = cfg.i18n.kbLimitPageSkipped;
+		});
+		return map;
+	}
+
+	function applyPageFailures(failedMap) {
+		Object.keys(failedMap).forEach(function (informationId) {
+			var $row = $('.ovebotai-page-row[data-information-id="' + informationId + '"]');
+			$row.find('input[name="kb_pages[]"]').prop('checked', false);
+			$row.find('.ovebotai-page-error').removeClass('is-success').text(failedMap[informationId]).show();
+		});
+	}
+
+	// Only called when the attempt as a whole wasn't clean (some pages
+	// failed) — flags the pages that stayed checked as actually synced this
+	// round, same top-right spot as the error text but green, so it's clear
+	// they don't need re-sending on the next "Next" click.
+	function applyPageSuccess(informationIds) {
+		informationIds.forEach(function (informationId) {
+			var $row = $('.ovebotai-page-row[data-information-id="' + informationId + '"]');
+			$row.find('.ovebotai-page-error').addClass('is-success').text(cfg.i18n.pageUpdated).show();
+		});
+	}
+
 	// ── Sync ─────────────────────────────────────────────────────────────────
 
 	function doSync() {
@@ -111,25 +214,18 @@
 		$('#oveSyncLoading').show();
 		$('#oveSyncError').hide();
 
-		var pageIds = [];
-		$('input[name="kb_pages[]"]:checked').each(function () {
-			pageIds.push($(this).val());
-		});
+		var productsEnabled = $('#oveProductsIntegrated').is(':checked') ? 1 : 0;
 
 		$.ajax({
 			url: cfg.syncUrl,
 			type: 'POST',
 			dataType: 'json',
-			data: { page_ids: pageIds }
+			data: { products_enabled: productsEnabled }
 		})
 			.done(function (resp) {
 				$('#oveSyncLoading').hide();
 				if (resp && resp.success) {
 					$('#oveSyncDone').show();
-					var warnings = resp.warnings;
-					if (warnings && warnings.length) {
-						$('#oveSyncWarnings').html('<p>' + warnings.join('<br>') + '</p>').show();
-					}
 					// Every dot (including the last) turns green.
 					$('.ovebotai-step-dot').removeClass('is-active').addClass('is-done');
 				} else {

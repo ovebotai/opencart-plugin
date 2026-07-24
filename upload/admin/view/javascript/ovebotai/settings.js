@@ -82,6 +82,26 @@
 			$('#oveChatStatusLbl').text($(this).is(':checked') ? cfg.i18n.enabled : cfg.i18n.disabled);
 		});
 
+		// ── Toggle products-recommend label ──────────────────────────────────
+
+		$('#oveProductsRecommend').on('change', function () {
+			$('#oveProductsRecommendLbl').text($(this).is(':checked') ? cfg.i18n.enabled : cfg.i18n.disabled);
+		});
+
+		// ── Toggle products-enabled label + feed URL row ─────────────────────
+
+		$('#oveProductsEnabled').on('change', function () {
+			var enabled = $(this).is(':checked');
+			$('#oveProductsEnabledLbl').text(enabled ? cfg.i18n.enabled : cfg.i18n.disabled);
+			$('#oveFeedUrlField').toggle(enabled);
+		});
+
+		// ── Toggle order-tracking-enabled label ──────────────────────────────
+
+		$('#oveOrderEnabled').on('change', function () {
+			$('#oveOrderEnabledLbl').text($(this).is(':checked') ? cfg.i18n.enabled : cfg.i18n.disabled);
+		});
+
 		// ── Appearance panel toggle ──────────────────────────────────────────
 
 		$('#oveAppearanceToggle').on('click', function () {
@@ -191,6 +211,34 @@
 		// WordPress plugin's own guard.
 		if (!cfg.isConnected && cfg.dashboardUrl) {
 			window.location.replace(cfg.dashboardUrl);
+		}
+
+		// ── Highlight a field via ?highlight=<id> ────────────────────────────
+		// Generic, not chat-specific — anything linking here can point at any
+		// field id (e.g. the dashboard's "chat disabled" card uses
+		// oveChatStatus) and have it scrolled into view + pulsed a few times
+		// so it's obvious what to look at, instead of leaving the merchant to
+		// hunt for it on a page full of fieldsets.
+		var highlightId = new URLSearchParams(window.location.search).get('highlight');
+		if (highlightId) {
+			var $target = $(document.getElementById(highlightId));
+			if ($target.length) {
+				// Prefer the actual visible control (e.g. the toggle switch
+				// itself, not its whole field row) so the pulse points right
+				// at the thing to click, not the whole surrounding block.
+				var $highlight = $target.closest('.ovebotai-switch');
+				if (!$highlight.length) { $highlight = $target.closest('.ovebotai-field'); }
+				if (!$highlight.length) { $highlight = $target; }
+				$highlight.addClass('ovebotai-highlight-pulse');
+
+				var rect = $highlight[0].getBoundingClientRect();
+				var inViewport = rect.top >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight);
+				if (!inViewport) {
+					$('html, body').animate({ scrollTop: Math.max(0, $highlight.offset().top - 80) }, 300);
+				}
+
+				setTimeout(function () { $highlight.removeClass('ovebotai-highlight-pulse'); }, 4500);
+			}
 		}
 	});
 

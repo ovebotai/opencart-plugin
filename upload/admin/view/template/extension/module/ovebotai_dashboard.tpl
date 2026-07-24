@@ -24,10 +24,12 @@
             <img src="view/image/ovebotai/logo.png" alt="Ovebot.ai" height="32" onerror="this.style.display='none'">
           </a>
           <h1><?php echo $text_dashboard_heading; ?></h1>
+          <span class="ovebotai-version">v<?php echo $module_version; ?></span>
         </div>
         <span class="ovebotai-connection-badge">
           <span class="ovebotai-status-dot<?php echo $is_connected ? ' is-connected' : ' is-disconnected'; ?>"></span>
-          <?php echo $text_connected; ?><?php echo $workspace ? ' &middot; ' . htmlspecialchars($workspace, ENT_QUOTES, 'UTF-8') : ''; ?>
+          <?php $ovebotai_badge = $workspace ? $workspace . ':' . ($agent !== '' ? $agent : 'default') : ''; ?>
+          <?php echo $text_connected; ?><?php echo $ovebotai_badge ? ' &middot; ' . htmlspecialchars($ovebotai_badge, ENT_QUOTES, 'UTF-8') : ''; ?>
           <?php if ($is_connected) { ?>
           &middot; <a href="<?php echo $disconnect_url; ?>" class="ovebotai-disconnect-link" data-ovebotai-confirm="<?php echo htmlspecialchars($text_confirm_disconnect, ENT_QUOTES, 'UTF-8'); ?>"><?php echo $button_disconnect; ?></a>
           <?php } ?>
@@ -35,10 +37,17 @@
       </div>
 
       <div class="ovebotai-dashboard-cards">
+        <?php if ($chat_status) { ?>
         <a href="<?php echo $chat_url; ?>" target="_blank" rel="noopener noreferrer" class="ovebotai-dash-card">
           <span class="ovebotai-dash-card-icon"><i class="fa fa-comments"></i></span>
-          <span class="ovebotai-dash-card-title"><?php echo $button_chat; ?></span>
+          <span class="ovebotai-dash-card-title"><?php echo $button_chat; ?> &rarr;</span>
         </a>
+        <?php } else { ?>
+        <a href="<?php echo $settings_chat_highlight_url; ?>" class="ovebotai-dash-card ovebotai-dash-card-muted">
+          <span class="ovebotai-dash-card-icon"><i class="fa fa-comments"></i></span>
+          <span class="ovebotai-dash-card-title"><?php echo $text_chat_disabled; ?> &rarr;</span>
+        </a>
+        <?php } ?>
         <a href="<?php echo $settings_url; ?>" class="ovebotai-dash-card">
           <span class="ovebotai-dash-card-icon"><i class="fa fa-cog"></i></span>
           <span class="ovebotai-dash-card-title"><?php echo $button_settings; ?></span>
@@ -51,6 +60,16 @@
         <?php } ?>
       </div>
 
+      <?php if ($setup_url) { ?>
+      <div class="ovebotai-advanced-panel">
+        <span class="ovebotai-advanced-icon"><i class="fa fa-sliders"></i></span>
+        <p class="ovebotai-advanced-text"><?php echo sprintf($text_advanced_settings, '<a href="' . htmlspecialchars($setup_url, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer">' . $text_link_here . '</a>'); ?></p>
+      </div>
+      <?php } ?>
+
+      <?php $ovebotai_account_link = $setup_url ? '<a href="' . htmlspecialchars($setup_url, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer">' . $text_account_settings . '</a>' : $text_account_settings; ?>
+
+      <?php if ($products_recommend_enabled) { ?>
       <div class="ovebotai-dash-card-wide">
         <span class="ovebotai-dash-card-wide-label">
           <i class="fa fa-shopping-cart"></i>
@@ -63,6 +82,13 @@
         <span class="<?php echo $ovebotai_count_classes; ?>"><?php echo number_format($products_count); ?></span>
         <?php } ?>
       </div>
+      <?php } else { ?>
+      <div class="ovebotai-notice ovebotai-notice-warning"><p><?php echo sprintf($text_products_recommend_off, $ovebotai_account_link); ?></p></div>
+      <?php } ?>
+
+      <?php if (!$order_api_enabled) { ?>
+      <div class="ovebotai-notice ovebotai-notice-warning"><p><?php echo sprintf($text_order_api_off, $ovebotai_account_link); ?></p></div>
+      <?php } ?>
 
       <div class="ovebotai-fieldset">
         <div class="ovebotai-fieldset-legend">

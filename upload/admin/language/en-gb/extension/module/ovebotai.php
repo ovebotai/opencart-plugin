@@ -16,19 +16,24 @@ $_['text_step_golive']              = 'Go live';
 // Setup wizard — step 1 (connect)
 $_['text_connect_heading']    = 'Connect your store to Ovebot.ai';
 $_['text_connect_lead']       = 'Log in to your Ovebot.ai account and allow this store to sync with it. You\'ll be sent to ovebot.ai to sign in, then brought straight back here to finish setting up your AI chat agent.';
-$_['button_connect_existing']  = 'Connect with an existing account &rarr;';
-$_['button_try_free']          = 'Try it for Free &rarr;';
+$_['button_connect_existing']  = 'Connect with an existing account';
+$_['button_try_free']          = 'Try it for Free';
 
 // Setup wizard — step 2 (pages)
 $_['text_pages_heading']      = 'Teach the AI chat agent about your website';
 $_['text_pages_lead']         = 'Select the pages below (e.g. About, FAQ, Shipping &amp; Returns). Your AI agent will read them and use that information to answer your customers\' questions accurately, live in the on-site chat.';
 $_['text_no_pages']            = 'No enabled information pages found.';
+$_['button_view_page']         = 'View page';
 
 // Setup wizard — step 3 (products)
 $_['text_products_heading']   = 'Teach the AI chat agent about your products';
 $_['text_products_checking']  = 'Checking how many products can be sent to your AI agent&hellip;';
 $_['text_no_products']         = 'No enabled products found - your AI agent won\'t have any products to recommend yet.';
 $_['text_products_indexed']    = 'products will be sent to your AI agent so it can recommend them to customers.';
+$_['entry_products_integrated']      = 'Use the built-in feed';
+$_['text_products_integrated_desc']  = 'Enabled - your store\'s product feed is sent to Ovebot.ai automatically.';
+$_['entry_products_external']        = 'I\'ll provide my own feed';
+$_['text_products_external_desc']    = 'Disabled - configure products directly in your Ovebot.ai account settings, available';
 
 // Setup wizard — step 4 (go live)
 $_['text_golive_heading']     = 'Ready to go live';
@@ -36,14 +41,20 @@ $_['text_golive_lead']        = 'Everything is set. Click below to send the sele
 $_['text_syncing']            = 'Syncing with Ovebot.ai&hellip;';
 $_['text_done_heading']       = 'All done!';
 $_['text_done_lead']          = 'Your store is now connected to Ovebot.ai. Your AI agent is live on your website right now, ready to chat with customers, recommend products and answer order-status questions.';
+$_['text_done_recommend']     = 'Setup finished successfully - we still recommend checking the settings in your Ovebot.ai account for the selected agent, available %s. You\'ll also find more settings and customizations there that might be useful.';
+$_['text_link_here']           = 'here';
 
 // Setup wizard — buttons
 $_['button_settings']          = 'Go to settings';
-$_['button_chat']              = 'Chat with the AI agent &rarr;';
-$_['button_next']              = 'Next &rarr;';
-$_['button_prev']              = '&larr; Previous';
-$_['button_finish']            = 'Finish setup &rarr;';
+$_['button_chat']              = 'Chat with the AI agent';
+$_['text_chat_disabled']       = 'Chat is disabled, enable it in settings';
+$_['button_next']              = 'Next';
+$_['button_prev']              = 'Previous';
+$_['button_finish']            = 'Finish setup';
 $_['button_retry']             = 'Retry';
+$_['text_syncing_pages']       = 'Syncing pages…';
+$_['text_kb_limit_page_skipped'] = 'Skipped - knowledge base limit reached.';
+$_['text_page_updated']          = 'Saved';
 
 // Setup wizard — messages
 $_['text_setup_complete']      = 'Setup complete!';
@@ -56,6 +67,12 @@ $_['text_connected']           = 'Connected';
 $_['button_disconnect']        = 'Disconnect';
 $_['button_account']           = 'Ovebot.ai account';
 $_['text_confirm_disconnect']  = 'Disconnect this store from Ovebot.ai? The AI chat agent will stop working until you reconnect.';
+
+// Dashboard — advanced settings call-out + account status notices
+$_['text_advanced_settings']        = 'For advanced settings, we recommend visiting your Ovebot.ai account %s.';
+$_['text_account_settings']         = 'account settings';
+$_['text_products_recommend_off']   = 'Product recommendation is turned off. You can change its status in your %s.';
+$_['text_order_api_off']            = 'Order tracking is turned off. You can change its status in your %s.';
 
 // Dashboard — products indexed
 $_['text_products_indexed_label']   = 'Products indexed by the AI agent';
@@ -88,10 +105,16 @@ $_['help_feed_intro']          = 'Ovebot.ai reads this URL periodically to keep 
 $_['entry_feed_url']           = 'Feed URL';
 $_['button_copy']              = 'Copy';
 $_['button_regen_hash']        = 'Regenerate hash';
+$_['entry_products_recommend'] = 'Recommend products';
+$_['help_products_recommend']  = 'When enabled, your AI agent recommends products from your catalog in conversations. This preference is saved in your Ovebot.ai account.';
+$_['entry_products_enabled']   = 'Use the built-in product feed';
+$_['help_products_enabled']    = 'When off, our own feed URL stops working (returns Forbidden) and Ovebot.ai won\'t be told about it. If you have a custom feed, configure it directly at:';
 
 // Settings — order tracking
 $_['text_orders_heading']      = 'Order tracking API';
 $_['help_orders_intro']        = 'Ovebot.ai calls this endpoint, authenticated with the credentials below, so your AI agent can answer "Where is my order?" questions with live tracking info.';
+$_['entry_order_enabled']      = 'Enable order tracking';
+$_['help_order_enabled']       = 'When enabled, your AI agent can look up order status and tracking. This preference is saved to your Ovebot.ai account.';
 $_['entry_order_url']          = 'Endpoint URL';
 $_['entry_api_user']           = 'API user';
 $_['entry_api_pass']           = 'API password';
@@ -121,6 +144,8 @@ $_['text_position_right']           = 'Bottom right';
 $_['text_position_left']            = 'Bottom left';
 $_['text_px_offset']                = 'px offset from bottom';
 $_['help_widget_position']          = 'Raise the offset to sit the widget above another floating button, e.g. WhatsApp.';
+$_['entry_z_index']                 = 'Stacking order (z-index)';
+$_['help_z_index']                  = 'Adjust the value to place the chat widget below/above another element on the page.';
 $_['text_messages_heading']         = 'Messages';
 $_['entry_subtitle']                = 'Subtitle';
 $_['text_subtitle_placeholder']     = 'e.g. Usually replies in a few minutes';
