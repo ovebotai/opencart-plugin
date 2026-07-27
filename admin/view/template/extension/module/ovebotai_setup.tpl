@@ -63,7 +63,8 @@
           <!-- Step 1: Connect -->
           <div class="ovebotai-panel" data-panel="1"<?php echo 1 !== $initial_step ? ' style="display:none"' : ''; ?>>
             <h2><?php echo $text_connect_heading; ?></h2>
-            <p class="ovebotai-lead"><?php echo $text_connect_lead; ?></p>
+            <p><?php echo $text_connect_lead; ?></p>
+            <p class="ovebotai-connect-free"><strong><?php echo $text_connect_free; ?></strong></p>
 
             <?php if ($oauth_error) { ?>
             <div class="ovebotai-notice ovebotai-notice-error"><p><?php echo htmlspecialchars($oauth_error, ENT_QUOTES, 'UTF-8'); ?></p></div>
@@ -71,9 +72,10 @@
 
             <div class="ovebotai-connect-box">
               <div class="ovebotai-connect-actions">
-                <a href="<?php echo $connect_url; ?>" class="button ovebotai-btn-connect"><?php echo $button_connect_existing; ?> &rarr;</a>
                 <a href="<?php echo $register_url; ?>" target="_blank" rel="noopener noreferrer" class="button ovebotai-btn-trial"><?php echo $button_try_free; ?> &rarr;</a>
+                <a href="<?php echo $connect_url; ?>" class="ovebotai-btn-existing-link"><?php echo $button_connect_existing; ?> &rarr;</a>
               </div>
+              <p class="ovebotai-connect-note"><?php echo $text_connect_note; ?></p>
             </div>
           </div>
 
@@ -125,10 +127,12 @@
                 <div class="ovebotai-radio-info">
                   <span class="ovebotai-radio-title"><?php echo $entry_products_external; ?></span>
                   <span class="ovebotai-radio-desc">
-                    <?php echo $text_products_external_desc; ?>
-                    <?php if ($setup_url) { ?>
-                    <a href="<?php echo $setup_url; ?>" target="_blank" rel="noopener noreferrer"><?php echo $text_link_here; ?></a>.
-                    <?php } ?>
+                    <?php
+                    $ovebotai_account_link = $setup_url
+                      ? '<a href="' . htmlspecialchars($setup_url, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer">' . $text_account_link . '</a>'
+                      : $text_account_link;
+                    echo sprintf($text_products_external_desc, $ovebotai_account_link);
+                    ?>
                   </span>
                 </div>
               </label>

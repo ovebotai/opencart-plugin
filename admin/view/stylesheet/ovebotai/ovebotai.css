@@ -12,7 +12,7 @@
 	margin: 0 auto;
 }
 
-/* Links/buttons rendered as buttons — OpenCart styles .btn, not .button, so
+/* Links/buttons rendered as buttons - OpenCart styles .btn, not .button, so
    give our .button a neutral base the .ovebotai-btn-* variants build on. */
 .ovebotai-wrap .button {
 	display: inline-block;
@@ -146,17 +146,23 @@
 
 /* ── Connect box ─────────────────────────────────────────────────────────── */
 
-.ovebotai-connect-box { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; margin-top: 12px; }
-.ovebotai-connect-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.ovebotai-connect-free { color: #1d2327; font-size: 15px; margin: -8px 0 20px; }
+.ovebotai-connect-free strong { font-weight: 700; }
 
-.ovebotai-btn-connect {
-	font-size: 15px !important;
-	padding: 10px 24px !important;
-	background: #fff !important;
-	border-color: #2271b1 !important;
+.ovebotai-connect-box { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 12px; }
+.ovebotai-connect-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+
+.ovebotai-connect-note { color: #787c82; font-size: 12px; margin: 4px 0 0; }
+
+.ovebotai-btn-existing-link {
+	font-size: 14px;
 	color: #2271b1 !important;
+	text-decoration: none;
+	background: none;
+	border: 0;
+	padding: 0;
 }
-.ovebotai-btn-connect:hover { background: #f0f6fc !important; }
+.ovebotai-btn-existing-link:hover, .ovebotai-btn-existing-link:focus { color: #135e96 !important; text-decoration: underline; }
 
 .ovebotai-btn-trial {
 	font-size: 16px !important;
@@ -242,6 +248,13 @@
 .ovebotai-page-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ovebotai-page-title { font-size: 14px; font-weight: 500; color: #1d2327; line-height: 1.3; }
 .ovebotai-page-item:hover .ovebotai-page-title { color: #2271b1; }
+
+/* ── Product count message ───────────────────────────────────────────────── */
+
+/* Dimmed while "I'll provide my own feed" is selected - our count won't be
+   what's sent, so it reads as informational-only. */
+#oveProductMsg { transition: opacity .15s ease; }
+#oveProductMsg.ovebotai-msg-dimmed { opacity: .5; }
 
 /* ── Product count badge ─────────────────────────────────────────────────── */
 
@@ -331,7 +344,7 @@
 /* .ovebotai-save-notice (the settings page's inline save/regen feedback,
    #oveSettingsNotice / #oveSettingsWarnings) reuses the -success/-error/
    -warning color+icon variants below but isn't itself a .ovebotai-notice, so
-   the icon font has to be set for both base classes — otherwise the glyph
+   the icon font has to be set for both base classes - otherwise the glyph
    renders as raw tofu instead of the actual Font Awesome icon. */
 .ovebotai-notice::before,
 .ovebotai-save-notice::before {
@@ -342,6 +355,15 @@
 }
 
 .ovebotai-notice p { margin: 0; }
+.ovebotai-notice a { color: inherit; text-decoration: underline; }
+
+/* Two-line variant: a bold title with a softer description underneath, next to
+   the notice icon (dashboard "recommendation/tracking off" call-outs). */
+.ovebotai-notice-titled { padding: 12px 16px; }
+.ovebotai-notice-content { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ovebotai-notice-title { font-weight: 700; font-size: 13px; }
+.ovebotai-notice-titled .ovebotai-notice-content p { opacity: .85; }
+
 .ovebotai-notice-error { background: #fcf0f1; border-left: 4px solid #d63638; color: #d63638; }
 .ovebotai-notice-error::before { content: "\f057"; }
 .ovebotai-notice-warning { background: #fff8e5; border-left: 4px solid #dba617; color: #614200; }
@@ -389,36 +411,53 @@
 .ovebotai-advanced-panel {
 	display: flex;
 	align-items: center;
-	gap: 14px;
+	gap: 16px;
 	margin: 0 0 28px;
-	padding: 16px 20px;
+	padding: 18px 22px;
 	background: linear-gradient(135deg, #eef2ff 0%, #f5f0ff 100%);
 	border: 1px solid #c7c0f5;
-	border-left: 4px solid #615ed6;
-	border-radius: 8px;
-	box-shadow: 0 1px 4px rgba(97, 94, 214, 0.12);
+	border-radius: 12px;
+	box-shadow: 0 1px 3px rgba(97, 94, 214, 0.10);
+	text-decoration: none;
+	transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.ovebotai-advanced-panel:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 6px 16px rgba(97, 94, 214, 0.20);
+	border-color: #a99ff0;
+	text-decoration: none;
 }
 
 .ovebotai-advanced-icon {
 	flex-shrink: 0;
-	font-size: 22px;
-	color: #615ed6;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: 9px;
+	background: #615ed6;
+	color: #fff;
+	font-size: 18px;
 }
 
-.ovebotai-advanced-text {
-	margin: 0;
+.ovebotai-advanced-body { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-width: 0; }
+.ovebotai-advanced-title { font-size: 15px; font-weight: 700; color: #1d1b3f; line-height: 1.3; }
+.ovebotai-advanced-desc { font-size: 13px; color: #4b4870; line-height: 1.45; }
+
+.ovebotai-advanced-cta {
+	flex-shrink: 0;
 	font-size: 14px;
-	font-weight: 500;
-	color: #2c2a5e;
-	line-height: 1.4;
-}
-
-.ovebotai-advanced-text a {
-	font-weight: 700;
+	font-weight: 600;
 	color: #4f46c9;
-	text-decoration: underline;
+	white-space: nowrap;
 }
-.ovebotai-advanced-text a:hover { color: #3a33a0; }
+.ovebotai-advanced-panel:hover .ovebotai-advanced-cta { color: #3a33a0; }
+
+@media (max-width: 600px) {
+	.ovebotai-advanced-panel { flex-wrap: wrap; }
+	.ovebotai-advanced-cta { flex-basis: 100%; padding-left: 56px; }
+}
 
 /* ── Settings header / connection badge ──────────────────────────────────── */
 
@@ -535,7 +574,7 @@ a.ovebotai-dash-card-wide-count:hover { text-decoration: underline; }
 
 .ovebotai-fieldset-legend i { font-size: 16px; color: #2271b1; }
 
-.ovebotai-fieldset-intro { margin-top: 0; margin-bottom: 15px; font-size: 13px; }
+.ovebotai-fieldset .description.ovebotai-fieldset-intro { margin-top: 0; margin-bottom: 15px; font-size: 13px; }
 
 .ovebotai-fieldset-body { padding: 16px 20px; }
 
@@ -640,20 +679,24 @@ a.ovebotai-dash-card-wide-count:hover { text-decoration: underline; }
 	margin-bottom: 6px;
 }
 
+/* Top row: label on the left, switch on the right (centred against each
+   other); the description then wraps onto its own full-width line underneath. */
 .ovebotai-field-switch {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
+	gap: 6px 16px;
 }
 
 .ovebotai-field-switch > label { margin-bottom: 0; }
+.ovebotai-field-switch > .description { flex-basis: 100%; margin-top: 0; }
 
 /* ── Toggle switch ───────────────────────────────────────────────────────── */
 
-.ovebotai-switch-wrap { display: flex; align-items: center; gap: 10px; }
+.ovebotai-switch-wrap { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-.ovebotai-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
+.ovebotai-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; margin-bottom: 0px !important; }
 .ovebotai-switch input { opacity: 0; width: 0; height: 0; }
 
 .ovebotai-switch-slider {
@@ -785,7 +828,7 @@ a.ovebotai-dash-card-wide-count:hover { text-decoration: underline; }
 	overflow: visible;
 }
 
-/* Unsaved-changes attention pulse — a couple of expanding energy rings
+/* Unsaved-changes attention pulse - a couple of expanding energy rings
    around the Save button, so it's obvious there's something to do.
    box-shadow spreads by the same px amount on every side regardless of
    the button's own (wide, short) aspect ratio, unlike a transform:scale()
@@ -807,7 +850,7 @@ a.ovebotai-dash-card-wide-count:hover { text-decoration: underline; }
 	margin-top: 15px;
 }
 
-/* Deep-link highlight (?highlight=<id>, see settings.js) — a few expanding
+/* Deep-link highlight (?highlight=<id>, see settings.js) - a few expanding
    rings around whichever field the link pointed at, same technique as the
    Save button's unsaved-changes pulse, but finite (3 runs) since here it's
    just "look here", not "there's something to do". */

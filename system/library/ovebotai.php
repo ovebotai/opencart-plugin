@@ -15,7 +15,7 @@ use Ovebotai\Exceptions\OvebotaiException;
 // delegates raw HTTP/OAuth to the dumb Client. Extends \Model for registry
 // access; construct directly ($this->load->library() can't resolve a namespace).
 class Ovebotai extends \Model {
-    // Plugin version — bump here on release; surfaced via getModuleVersion().
+    // Plugin version - bump here on release; surfaced via getModuleVersion().
     const VERSION = '1.0.0';
 
     private $client;
@@ -56,7 +56,7 @@ class Ovebotai extends \Model {
 
     // ── OAuth: return ────────────────────────────────────────────────────────
 
-    // Exchanges the auth code for tokens and persists them. Never throws —
+    // Exchanges the auth code for tokens and persists them. Never throws -
     // returns array('success' => true) or array('error' => '...') for inline display.
     public function handleCallback($code, $state) {
         $key      = 'module_ovebotai_pkce_' . $state;
@@ -73,7 +73,7 @@ class Ovebotai extends \Model {
             return array('error' => $e->getMessage());
         }
 
-        // Read the old agent BEFORE storeTokens() — it may persist a new agent
+        // Read the old agent BEFORE storeTokens() - it may persist a new agent
         // right away, which would otherwise mask a real agent change.
         $previousAgent = (string)$this->config->get('module_ovebotai_agent');
 
@@ -325,7 +325,7 @@ class Ovebotai extends \Model {
 
     // ── Setup (widget + products feed + order lookup) ────────────────────────
 
-    // Pushes local config to /setup (partial update — products/order always sent).
+    // Pushes local config to /setup (partial update - products/order always sent).
     // Returns array('success' => bool, 'error' => Ovebot's own message).
     public function resyncSetup() {
         $result = $this->apiRequest('PUT', $this->setupApiPath(), $this->buildSetupPayload());
@@ -532,6 +532,21 @@ class Ovebotai extends \Model {
     public function getKbCreateUrl() {
         $ws = $this->getWorkspace();
         return $ws !== '' ? 'https://' . $ws . '.ovebot.ai/knowledge-base/create' : '';
+    }
+
+    // "Start Free" target: the account register page with the OpenCart freemium
+    // plan slug (oc-freemium; wp-/spfy- on the other platforms) and the store's
+    // domain pre-filled. The account side checks the slug against the active
+    // freemium plan - if it's closed, it falls back to a normal register and
+    // shows the "not accepting free plans right now" notice.
+    public function getRegisterUrl() {
+        $host = (string)$this->config->get('module_ovebotai_account_host');
+        $host = $host !== '' ? $host : 'account.ovebot.ai';
+
+        return 'https://' . $host . '/register?' . http_build_query(array(
+            'plan'   => 'oc-freemium',
+            'domain' => $this->siteDomain(),
+        ));
     }
 
     // Where "I'll provide my own feed" sends the merchant to configure products.
@@ -757,7 +772,7 @@ class Ovebotai extends \Model {
             $this->client->setAccessToken((string)$this->config->get('module_ovebotai_access_token'))
                 ->apiRequest('POST', '/v1/disconnect');
         } catch (OvebotaiException $e) {
-            // Ignore — local cleanup below must happen regardless.
+            // Ignore - local cleanup below must happen regardless.
         }
 
         $this->persist(array(
@@ -780,7 +795,7 @@ class Ovebotai extends \Model {
             $partial['module_ovebotai_refresh_token'] = (string)$response['refresh_token'];
         }
 
-        // Strict slug only — this is concatenated into storefront script-src hosts.
+        // Strict slug only - this is concatenated into storefront script-src hosts.
         if (!empty($response['workspace']['slug']) && preg_match('/^[a-z0-9-]+$/i', $response['workspace']['slug'])) {
             $partial['module_ovebotai_workspace'] = $response['workspace']['slug'];
         }

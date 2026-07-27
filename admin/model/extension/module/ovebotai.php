@@ -18,7 +18,7 @@ class ModelExtensionModuleOvebotai extends Model {
         if (empty($settings['module_ovebotai_order_pass'])) {
             $settings['module_ovebotai_order_pass'] = $this->randomToken(16);
         }
-        // Never auto-enable the storefront chat on install — that only happens
+        // Never auto-enable the storefront chat on install - that only happens
         // once the setup wizard actually completes.
         if (!isset($settings['module_ovebotai_setup_complete'])) {
             $settings['module_ovebotai_setup_complete'] = '';
@@ -30,7 +30,7 @@ class ModelExtensionModuleOvebotai extends Model {
     }
 
     public function uninstall() {
-        // Only the setting row — no custom tables in phase 1.
+        // Only the setting row - no custom tables in phase 1.
         $this->db->query("DELETE FROM `" . DB_PREFIX . "setting` WHERE `code` = 'module_ovebotai'");
 
         $this->removeEvents();
@@ -45,13 +45,13 @@ class ModelExtensionModuleOvebotai extends Model {
     //     is captured (captureOrderId()) into the registry before it either
     //     runs or gets cleared.
     //   - common/success/after: the purchase-conversion pixel (purchaseEvent())
-    //     — reads back the id captured above and appends its own snippet once
+    //     - reads back the id captured above and appends its own snippet once
     //     the success template's own output ($output) already exists.
     // All three append to $output by reference (OC's .../after event
-    // signature — see index()); success/index/before only needs $route/$args.
+    // signature - see index()); success/index/before only needs $route/$args.
     //
     // OpenCart's event model moved from setting/event (2.x, addEvent/
-    // deleteEvent) to extension/event (3.x, addEvent/deleteEventByCode) —
+    // deleteEvent) to extension/event (3.x, addEvent/deleteEventByCode) -
     // same addEvent() signature otherwise, just an extra $sort_order param
     // on 3.x that defaults to 0.
 

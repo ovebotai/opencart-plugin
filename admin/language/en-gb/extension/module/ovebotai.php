@@ -2,40 +2,43 @@
 // Heading
 $_['heading_title']            = 'Ovebot - AI Chatbot, Live Chat &amp; AI Sales Agent';
 
-// Text — generic
+// Text - generic
 $_['text_extension']           = 'Extensions';
 $_['text_success']             = 'Success: You have modified the Ovebot.ai module!';
 $_['text_home']                = 'Home';
 
-// Setup wizard — step labels
+// Setup wizard - step labels
 $_['text_step_connect']             = 'Connect account';
 $_['text_step_pages']               = 'Website pages';
 $_['text_step_products']            = 'Products';
-$_['text_step_golive']              = 'Go live';
+$_['text_step_golive']              = 'Go live 🎉';
 
-// Setup wizard — step 1 (connect)
+// Setup wizard - step 1 (connect)
 $_['text_connect_heading']    = 'Connect your store to Ovebot.ai';
-$_['text_connect_lead']       = 'Log in to your Ovebot.ai account and allow this store to sync with it. You\'ll be sent to ovebot.ai to sign in, then brought straight back here to finish setting up your AI chat agent.';
-$_['button_connect_existing']  = 'Connect with an existing account';
-$_['button_try_free']          = 'Try it for Free';
+$_['text_connect_lead']       = 'Your AI agent learns your store and answers customers 24/7, in any language.';
+$_['text_connect_free']       = 'Free forever. No credit card.';
+$_['text_connect_note']       = 'You\'ll sign in on ovebot.ai and return here to finish setup.';
+$_['button_connect_existing']  = 'I already have an account';
+$_['button_try_free']          = 'Start Free';
 
-// Setup wizard — step 2 (pages)
+// Setup wizard - step 2 (pages)
 $_['text_pages_heading']      = 'Teach the AI chat agent about your website';
 $_['text_pages_lead']         = 'Select the pages below (e.g. About, FAQ, Shipping &amp; Returns). Your AI agent will read them and use that information to answer your customers\' questions accurately, live in the on-site chat.';
 $_['text_no_pages']            = 'No enabled information pages found.';
 $_['button_view_page']         = 'View page';
 
-// Setup wizard — step 3 (products)
+// Setup wizard - step 3 (products)
 $_['text_products_heading']   = 'Teach the AI chat agent about your products';
 $_['text_products_checking']  = 'Checking how many products can be sent to your AI agent&hellip;';
 $_['text_no_products']         = 'No enabled products found - your AI agent won\'t have any products to recommend yet.';
 $_['text_products_indexed']    = 'products will be sent to your AI agent so it can recommend them to customers.';
 $_['entry_products_integrated']      = 'Use the built-in feed';
-$_['text_products_integrated_desc']  = 'Enabled - your store\'s product feed is sent to Ovebot.ai automatically.';
+$_['text_products_integrated_desc']  = 'Only products currently in stock are sent to Ovebot.ai.';
 $_['entry_products_external']        = 'I\'ll provide my own feed';
-$_['text_products_external_desc']    = 'Disabled - configure products directly in your Ovebot.ai account settings, available';
+$_['text_products_external_desc']    = 'Set up a compatible feed URL (e.g. Google Merchant) directly in your %s.';
+$_['text_account_link']              = 'Ovebot.ai account';
 
-// Setup wizard — step 4 (go live)
+// Setup wizard - step 4 (go live)
 $_['text_golive_heading']     = 'Ready to go live';
 $_['text_golive_lead']        = 'Everything is set. Click below to send the selected pages and products to Ovebot.ai - your AI chat agent will start using them right away.';
 $_['text_syncing']            = 'Syncing with Ovebot.ai&hellip;';
@@ -44,7 +47,7 @@ $_['text_done_lead']          = 'Your store is now connected to Ovebot.ai. Your 
 $_['text_done_recommend']     = 'Setup finished successfully - we still recommend checking the settings in your Ovebot.ai account for the selected agent, available %s. You\'ll also find more settings and customizations there that might be useful.';
 $_['text_link_here']           = 'here';
 
-// Setup wizard — buttons
+// Setup wizard - buttons
 $_['button_settings']          = 'Go to settings';
 $_['button_chat']              = 'Chat with the AI agent';
 $_['text_chat_disabled']       = 'Chat is disabled, enable it in settings';
@@ -56,7 +59,7 @@ $_['text_syncing_pages']       = 'Syncing pages…';
 $_['text_kb_limit_page_skipped'] = 'Skipped - knowledge base limit reached.';
 $_['text_page_updated']          = 'Saved';
 
-// Setup wizard — messages
+// Setup wizard - messages
 $_['text_setup_complete']      = 'Setup complete!';
 $_['text_error']               = 'An error occurred. Please try again.';
 
@@ -68,16 +71,19 @@ $_['button_disconnect']        = 'Disconnect';
 $_['button_account']           = 'Ovebot.ai account';
 $_['text_confirm_disconnect']  = 'Disconnect this store from Ovebot.ai? The AI chat agent will stop working until you reconnect.';
 
-// Dashboard — advanced settings call-out + account status notices
-$_['text_advanced_settings']        = 'For advanced settings, we recommend visiting your Ovebot.ai account %s.';
-$_['text_account_settings']         = 'account settings';
-$_['text_products_recommend_off']   = 'Product recommendation is turned off. You can change its status in your %s.';
-$_['text_order_api_off']            = 'Order tracking is turned off. You can change its status in your %s.';
+// Dashboard - advanced settings call-out + account status notices
+$_['text_advanced_title']           = 'Looking for advanced settings?';
+$_['text_advanced_desc']            = 'Fine-tune your AI agent right from your Ovebot.ai account - that\'s where the advanced options and customizations live.';
+$_['button_open_account_settings']  = 'Open account settings';
+$_['text_products_recommend_off_title'] = 'Product recommendations are turned off';
+$_['text_products_recommend_off']       = 'Your AI agent isn\'t recommending products right now. You can change its status %s.';
+$_['text_order_api_off_title']          = 'Order tracking is turned off';
+$_['text_order_api_off']                = 'Your AI agent can\'t answer order-status questions while order tracking is off. You can change its status %s.';
 
-// Dashboard — products indexed
+// Dashboard - products indexed
 $_['text_products_indexed_label']   = 'Products indexed by the AI agent';
 
-// Dashboard — knowledge bases
+// Dashboard - knowledge bases
 $_['text_kb_heading']          = 'Knowledge Bases';
 $_['text_kb_intro']            = 'These are the resources your AI agent uses to answer customer questions in the chat. Editing one of these pages in OpenCart automatically updates its entry here within a few minutes - or use "Edit on Ovebot.ai" below to change it directly.';
 $_['text_kb_active_count']     = '%d of %d entries active';
@@ -92,36 +98,36 @@ $_['text_kb_inactive']         = 'Inactive';
 $_['text_settings_heading']         = 'Settings';
 $_['text_back']                = 'Dashboard';
 
-// Settings — chat widget
+// Settings - chat widget
 $_['text_widget_heading']      = 'On-site chat widget';
 $_['entry_chat_status']        = 'Show the chat bubble on your site';
 $_['text_enabled']             = 'Enabled';
 $_['text_disabled']            = 'Disabled';
 $_['help_chat_status']         = 'When enabled, the AI agent\'s chat bubble appears on every page of your site so customers can start a conversation.';
 
-// Settings — product feed
+// Settings - product feed
 $_['text_feed_heading']        = 'Product feed';
 $_['help_feed_intro']          = 'Ovebot.ai reads this URL periodically to keep your AI agent\'s product recommendations up to date with your catalog (stock, price, availability).';
 $_['entry_feed_url']           = 'Feed URL';
 $_['button_copy']              = 'Copy';
 $_['button_regen_hash']        = 'Regenerate hash';
 $_['entry_products_recommend'] = 'Recommend products';
-$_['help_products_recommend']  = 'When enabled, your AI agent recommends products from your catalog in conversations. This preference is saved in your Ovebot.ai account.';
+$_['help_products_recommend']  = 'When enabled, your AI agent recommends products from your catalog in conversations.';
 $_['entry_products_enabled']   = 'Use the built-in product feed';
 $_['help_products_enabled']    = 'When off, our own feed URL stops working (returns Forbidden) and Ovebot.ai won\'t be told about it. If you have a custom feed, configure it directly at:';
 
-// Settings — order tracking
+// Settings - order tracking
 $_['text_orders_heading']      = 'Order tracking API';
 $_['help_orders_intro']        = 'Ovebot.ai calls this endpoint, authenticated with the credentials below, so your AI agent can answer "Where is my order?" questions with live tracking info.';
 $_['entry_order_enabled']      = 'Enable order tracking';
-$_['help_order_enabled']       = 'When enabled, your AI agent can look up order status and tracking. This preference is saved to your Ovebot.ai account.';
+$_['help_order_enabled']       = 'When enabled, your AI agent can look up order status and tracking.';
 $_['entry_order_url']          = 'Endpoint URL';
 $_['entry_api_user']           = 'API user';
 $_['entry_api_pass']           = 'API password';
 $_['button_regen_creds']       = 'Regenerate credentials';
 $_['help_regen_creds']         = 'Generates a new user/password pair. The old ones will stop working immediately.';
 
-// Settings — appearance
+// Settings - appearance
 $_['text_appearance_heading']       = 'Appearance';
 $_['button_configure_appearance']   = 'Configure appearance';
 $_['text_look_feel']                = 'Look &amp; feel';
@@ -155,7 +161,7 @@ $_['text_proactive_placeholder']    = 'e.g. Need help finding something?';
 $_['text_seconds_after_load']       = 's after page load';
 $_['help_proactive_message']        = 'A short message that pops up on its own to invite visitors to chat. Leave empty to disable.';
 
-// Settings — save + AJAX messages
+// Settings - save + AJAX messages
 $_['button_save_settings']          = 'Save settings';
 $_['text_settings_saved']           = 'Settings saved.';
 $_['text_settings_saved_reconnect'] = 'Chat settings saved. Reconnect to Ovebot.ai to sync feed and order settings.';

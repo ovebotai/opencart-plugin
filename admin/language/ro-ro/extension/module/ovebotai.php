@@ -2,40 +2,43 @@
 // Heading
 $_['heading_title']            = 'Ovebot - Chatbot AI, Live Chat &amp; Agent AI de Vânzări';
 
-// Text — generic
+// Text - generic
 $_['text_extension']           = 'Extensii';
 $_['text_success']             = 'Succes: Ai modificat modulul Ovebot.ai!';
 $_['text_home']                = 'Acasă';
 
-// Setup wizard — step labels
+// Setup wizard - step labels
 $_['text_step_connect']             = 'Conectează contul';
 $_['text_step_pages']               = 'Pagini site';
 $_['text_step_products']            = 'Produse';
-$_['text_step_golive']              = 'Publică';
+$_['text_step_golive']              = 'Publică 🎉';
 
-// Setup wizard — step 1 (connect)
+// Setup wizard - step 1 (connect)
 $_['text_connect_heading']    = 'Conectează magazinul la Ovebot.ai';
-$_['text_connect_lead']       = 'Autentifică-te în contul tău Ovebot.ai și permite acestui site să se sincronizeze cu el. Vei fi trimis pe ovebot.ai pentru a te autentifica, apoi adus direct înapoi aici pentru a finaliza configurarea agentului tău AI de chat.';
-$_['button_connect_existing']  = 'Conectează-te cu un cont existent';
-$_['button_try_free']          = 'Încearcă gratuit';
+$_['text_connect_lead']       = 'Agentul tău AI învață magazinul și răspunde clienților 24/7, în orice limbă.';
+$_['text_connect_free']       = 'Gratuit pentru totdeauna. Fără card.';
+$_['text_connect_note']       = 'Te vei autentifica pe ovebot.ai și vei reveni aici pentru a finaliza configurarea.';
+$_['button_connect_existing']  = 'Am deja un cont';
+$_['button_try_free']          = 'Începe gratuit';
 
-// Setup wizard — step 2 (pages)
+// Setup wizard - step 2 (pages)
 $_['text_pages_heading']      = 'Învață agentul AI de chat despre site-ul tău';
 $_['text_pages_lead']         = 'Selectează paginile de mai jos (ex. Despre noi, Întrebări frecvente, Livrare &amp; Retur). Agentul tău AI le va citi și va folosi aceste informații pentru a răspunde corect întrebărilor clienților, direct în chat-ul de pe site.';
 $_['text_no_pages']            = 'Nu au fost găsite pagini de informații active.';
 $_['button_view_page']         = 'Vezi pagina';
 
-// Setup wizard — step 3 (products)
+// Setup wizard - step 3 (products)
 $_['text_products_heading']   = 'Învață agentul AI de chat despre produsele tale';
 $_['text_products_checking']  = 'Se verifică câte produse pot fi trimise agentului tău AI&hellip;';
 $_['text_no_products']         = 'Nu au fost găsite produse active - agentul tău AI nu va avea încă produse de recomandat.';
 $_['text_products_indexed']    = 'produse vor fi trimise agentului tău AI, ca să le poată recomanda clienților.';
 $_['entry_products_integrated']      = 'Folosește feed-ul integrat';
-$_['text_products_integrated_desc']  = 'Activat - feed-ul de produse al magazinului tău este trimis automat către Ovebot.ai.';
+$_['text_products_integrated_desc']  = 'Doar produsele aflate momentan în stoc sunt trimise către Ovebot.ai.';
 $_['entry_products_external']        = 'Voi furniza un alt feed';
-$_['text_products_external_desc']    = 'Dezactivat - configurezi produsele direct în setările contului tău Ovebot.ai, disponibile';
+$_['text_products_external_desc']    = 'Configurează un URL de feed compatibil (ex. Google Merchant) direct în %s.';
+$_['text_account_link']              = 'Contul Ovebot.ai';
 
-// Setup wizard — step 4 (go live)
+// Setup wizard - step 4 (go live)
 $_['text_golive_heading']     = 'Gata de publicare';
 $_['text_golive_lead']        = 'Totul este pregătit. Apasă mai jos pentru a trimite paginile și produsele selectate către Ovebot.ai - agentul tău AI de chat le va folosi imediat.';
 $_['text_syncing']            = 'Se sincronizează cu Ovebot.ai&hellip;';
@@ -44,7 +47,7 @@ $_['text_done_lead']          = 'Magazinul tău este acum conectat la Ovebot.ai.
 $_['text_done_recommend']     = 'Setup-ul s-a finalizat cu succes - totuși îți recomandăm să verifici și setările din contul tău Ovebot.ai aferente agentului selectat, disponibile %s. Vei găsi acolo și mai multe setări și personalizări pe care le poți considera utile.';
 $_['text_link_here']           = 'aici';
 
-// Setup wizard — buttons
+// Setup wizard - buttons
 $_['button_settings']          = 'Mergi la setări';
 $_['button_chat']              = 'Discută cu agentul AI';
 $_['text_chat_disabled']       = 'Chat-ul este dezactivat, activează-l în setări';
@@ -56,7 +59,7 @@ $_['text_syncing_pages']       = 'Se sincronizează paginile…';
 $_['text_kb_limit_page_skipped'] = 'Omisă - limita bazei de cunoștințe a fost atinsă.';
 $_['text_page_updated']          = 'Salvat';
 
-// Setup wizard — messages
+// Setup wizard - messages
 $_['text_setup_complete']      = 'Configurare finalizată!';
 $_['text_error']               = 'A apărut o eroare. Te rugăm să încerci din nou.';
 
@@ -68,16 +71,19 @@ $_['button_disconnect']        = 'Deconectează';
 $_['button_account']           = 'Cont Ovebot.ai';
 $_['text_confirm_disconnect']  = 'Deconectezi acest magazin de la Ovebot.ai? Agentul AI de chat nu va mai funcționa până la reconectare.';
 
-// Dashboard — setări avansate + notificări status cont
-$_['text_advanced_settings']        = 'Pentru setări avansate îți recomandăm să accesezi contul tău Ovebot.ai %s.';
-$_['text_account_settings']         = 'setările contului';
-$_['text_products_recommend_off']   = 'Recomandarea de produse este oprită. Poți modifica statusul în %s.';
-$_['text_order_api_off']            = 'Urmărirea comenzilor este oprită. Poți modifica statusul în %s.';
+// Dashboard - setări avansate + notificări status cont
+$_['text_advanced_title']           = 'Cauți setări avansate?';
+$_['text_advanced_desc']            = 'Ajustează-ți agentul AI direct din contul tău Ovebot.ai - acolo găsești opțiuni avansate și personalizări.';
+$_['button_open_account_settings']  = 'Deschide setările contului';
+$_['text_products_recommend_off_title'] = 'Recomandările de produse sunt dezactivate';
+$_['text_products_recommend_off']       = 'Agentul tău AI nu recomandă produse momentan. Poți modifica statusul %s.';
+$_['text_order_api_off_title']          = 'Tracking-ul comenzilor este dezactivat';
+$_['text_order_api_off']                = 'Agentul tău AI nu poate răspunde la întrebări despre statusul comenzilor cât timp tracking-ul comenzilor este dezactivat. Poți modifica statusul %s.';
 
-// Dashboard — produse indexate
+// Dashboard - produse indexate
 $_['text_products_indexed_label']   = 'Produse indexate de agentul AI';
 
-// Dashboard — baze de cunoștințe
+// Dashboard - baze de cunoștințe
 $_['text_kb_heading']          = 'Baze de cunoștințe';
 $_['text_kb_intro']            = 'Acestea sunt resursele pe care agentul tău AI le folosește pentru a răspunde la întrebările clienților în chat. Editarea uneia dintre aceste pagini în OpenCart actualizează automat intrarea de aici în câteva minute - sau folosește „Editează pe Ovebot.ai" mai jos pentru a o modifica direct.';
 $_['text_kb_active_count']     = '%d din %d intrări active';
@@ -92,36 +98,36 @@ $_['text_kb_inactive']         = 'Inactiv';
 $_['text_settings_heading']         = 'Setări';
 $_['text_back']                = 'Panou de control';
 
-// Settings — chat widget
+// Settings - chat widget
 $_['text_widget_heading']      = 'Chat pe site';
 $_['entry_chat_status']        = 'Afișează bula de chat pe site-ul tău';
 $_['text_enabled']             = 'Activat';
 $_['text_disabled']            = 'Dezactivat';
 $_['help_chat_status']         = 'Când e activată, bula de chat a agentului AI apare pe fiecare pagină a site-ului, astfel încât clienții pot începe o conversație.';
 
-// Settings — product feed
+// Settings - product feed
 $_['text_feed_heading']        = 'Feed de produse';
 $_['help_feed_intro']          = 'Ovebot.ai citește periodic acest URL pentru a menține recomandările de produse ale agentului AI la zi cu catalogul tău (stoc, preț, disponibilitate).';
 $_['entry_feed_url']           = 'URL feed';
 $_['button_copy']              = 'Copiază';
 $_['button_regen_hash']        = 'Regenerează codul';
 $_['entry_products_recommend'] = 'Recomandă produse';
-$_['help_products_recommend']  = 'Când e activată, agentul tău AI recomandă produse din catalogul tău în conversații. Această preferință se salvează în contul tău Ovebot.ai.';
+$_['help_products_recommend']  = 'Când e activată, agentul tău AI recomandă produse din catalogul tău în conversații.';
 $_['entry_products_enabled']   = 'Folosește feed-ul de produse integrat';
 $_['help_products_enabled']    = 'Când e dezactivat, URL-ul feed-ului nostru încetează să funcționeze (întoarce Forbidden), iar Ovebot.ai nu mai este anunțat de el. Dacă ai un feed personalizat, configurează-l direct la:';
 
-// Settings — order tracking
+// Settings - order tracking
 $_['text_orders_heading']      = 'API urmărire comenzi';
 $_['help_orders_intro']        = 'Ovebot.ai apelează acest endpoint, autentificat cu datele de mai jos, astfel încât agentul AI poate răspunde la întrebări de tip „Unde este comanda mea?" cu informații live de urmărire.';
 $_['entry_order_enabled']      = 'Activează urmărirea comenzilor';
-$_['help_order_enabled']       = 'Când e activată, agentul tău AI poate căuta statusul și urmărirea comenzilor. Această preferință se salvează în contul tău Ovebot.ai.';
+$_['help_order_enabled']       = 'Când e activată, agentul tău AI poate căuta statusul și urmărirea comenzilor.';
 $_['entry_order_url']          = 'URL endpoint';
 $_['entry_api_user']           = 'Utilizator API';
 $_['entry_api_pass']           = 'Parolă API';
 $_['button_regen_creds']       = 'Regenerează credențialele';
 $_['help_regen_creds']         = 'Generează o nouă pereche utilizator/parolă. Cele vechi vor înceta să funcționeze imediat.';
 
-// Settings — appearance
+// Settings - appearance
 $_['text_appearance_heading']       = 'Aspect';
 $_['button_configure_appearance']   = 'Configurează aspectul';
 $_['text_look_feel']                = 'Aspect &amp; stil';
@@ -155,7 +161,7 @@ $_['text_proactive_placeholder']    = 'ex. Ai nevoie de ajutor să găsești cev
 $_['text_seconds_after_load']       = 's după încărcarea paginii';
 $_['help_proactive_message']        = 'Un mesaj scurt care apare singur pentru a invita vizitatorii la chat. Lasă gol pentru a dezactiva.';
 
-// Settings — save + AJAX messages
+// Settings - save + AJAX messages
 $_['button_save_settings']          = 'Salvează setările';
 $_['text_settings_saved']           = 'Setări salvate.';
 $_['text_settings_saved_reconnect'] = 'Setările de chat au fost salvate. Reconectează-te la Ovebot.ai pentru a sincroniza setările de feed și comenzi.';

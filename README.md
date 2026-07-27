@@ -2,13 +2,13 @@
 
 Official **[Ovebot.ai](https://ovebot.ai/)** integration for OpenCart, developed by **AWeb Design SRL**.
 
-AI chatbot and live chat for your OpenCart store. Your AI agent recommends products, answers support questions and tracks orders 24/7. Free trial, no card.
+AI chatbot and live chat for your OpenCart store. Your AI agent recommends products, answers support questions and tracks orders 24/7. Free plan for the first 200 stores. No credit card.
 
 ## 🤖 The AI Chatbot That Actually Knows Your Store
 
 Most chat extensions give you a box. Ovebot gives you an **AI sales agent** - one that has read your product catalog, your policies and your pages, and can hold a real conversation about them at 3 AM while you sleep.
 
-Install the module, click **Start free trial**, and in a couple of minutes your OpenCart store has a live chat widget backed by an AI chatbot that answers customer questions, recommends products that are actually in stock, and tells shoppers exactly where their order is - with the real tracking number.
+Install the module, click **Start Free**, and in a couple of minutes your OpenCart store has a live chat widget backed by an AI chatbot that answers customer questions, recommends products that are actually in stock, and tells shoppers exactly where their order is - with the real tracking number.
 
 No API keys. No copy-pasting scripts. No credit card to start.
 
@@ -99,9 +99,11 @@ Ovebot was built with EU privacy rules in the design, not bolted on:
 
 The widget loads from a single lightweight script. Your OpenCart store stays fast, and your Core Web Vitals stay happy.
 
-## 🆓 Start Free - No Credit Card
+## 🆓 Free Plan - Early Access, First 200 Stores
 
-Click **Start free trial** in the setup wizard and you're running. Full access for the whole trial, **no card required, no automatic renewal, no charge**. Nothing to cancel if you walk away.
+Ovebot is in early access: the free plan is limited to the first 200 stores. It includes 100 AI replies per month, free forever. No credit card, no time limit, nothing to cancel.
+
+Click **Start Free** in the setup wizard and you're running in minutes.
 
 Want to see it before you even install? Paste your website URL at [demo.ovebot.ai](https://demo.ovebot.ai) and in about a minute you'll be chatting with an AI agent trained on your own site. No signup.
 
@@ -114,7 +116,7 @@ Hit your monthly message limit and the chat **does not shut off**. The widget sw
 ## Requirements
 
 - OpenCart 2.3 or 3.x
-- An [Ovebot.ai](https://ovebot.ai/) account - you can create a free trial directly from the wizard, no credit card
+- An [Ovebot.ai](https://ovebot.ai/) account - you can start on the free plan directly from the wizard, no credit card
 
 ## Installation
 
@@ -130,7 +132,7 @@ The first time you open the module, a 4-step wizard connects your store to your 
 
 ### Step 1 - Connect account
 
-Log in to your Ovebot.ai account, or start a free trial. You'll be sent to ovebot.ai to sign in, then brought straight back to the admin panel.
+Log in to your Ovebot.ai account, or start on the free plan. You'll be sent to ovebot.ai to sign in, then brought straight back to the admin panel.
 
 ![Step 1 - Connect account](docs/screenshots/wizard-step1-connect.png)
 
@@ -166,8 +168,11 @@ Once enabled, the chat widget appears on every page of your store: product searc
 
 ## Frequently Asked Questions
 
+**Does Ovebot cost anything to try?**
+No. The free plan is free forever and includes 100 AI replies per month, with no credit card and no time limit. Early access: the free plan is available to the first 200 stores. Paid plans with higher limits are available anytime at ovebot.ai.
+
 **Do I need an Ovebot.ai account?**
-Yes, but you can create one without leaving OpenCart. The setup wizard lets you start a **free trial** directly - no credit card, no separate signup on the website.
+Yes, but you can create one without leaving OpenCart. The setup wizard lets you start on the free plan directly - no credit card, no separate signup on the website.
 
 **How is this different from a normal live chat extension?**
 A normal live chat waits for you to be online. Ovebot's AI agent answers on its own - from your real product catalog and your own pages - 24/7, and only pulls in a human when the conversation actually needs one.
@@ -190,7 +195,7 @@ Yes. Paste your website URL at [demo.ovebot.ai](https://demo.ovebot.ai) and abou
 ## 🚀 Get Started in Minutes
 
 1. Install and activate the module.
-2. Start a free trial from the setup wizard - or connect your existing Ovebot account with one click.
+2. Start free from the setup wizard - or connect your existing Ovebot account with one click.
 3. Pick your pages for the knowledge base, style your widget, and go live.
 
 Your AI sales agent is on duty tonight. Install Ovebot and stop losing the customers you already paid to bring to your site.

@@ -37,6 +37,16 @@
       </div>
 
       <div class="ovebotai-dashboard-cards">
+        <?php if ($account_url) { ?>
+        <a href="<?php echo $account_url; ?>" target="_blank" rel="noopener noreferrer" class="ovebotai-dash-card">
+          <span class="ovebotai-dash-card-icon"><i class="fa fa-external-link"></i></span>
+          <span class="ovebotai-dash-card-title"><?php echo $button_account; ?></span>
+        </a>
+        <?php } ?>
+        <a href="<?php echo $settings_url; ?>" class="ovebotai-dash-card">
+          <span class="ovebotai-dash-card-icon"><i class="fa fa-cog"></i></span>
+          <span class="ovebotai-dash-card-title"><?php echo $button_settings; ?></span>
+        </a>
         <?php if ($chat_status) { ?>
         <a href="<?php echo $chat_url; ?>" target="_blank" rel="noopener noreferrer" class="ovebotai-dash-card">
           <span class="ovebotai-dash-card-icon"><i class="fa fa-comments"></i></span>
@@ -48,26 +58,26 @@
           <span class="ovebotai-dash-card-title"><?php echo $text_chat_disabled; ?> &rarr;</span>
         </a>
         <?php } ?>
-        <a href="<?php echo $settings_url; ?>" class="ovebotai-dash-card">
-          <span class="ovebotai-dash-card-icon"><i class="fa fa-cog"></i></span>
-          <span class="ovebotai-dash-card-title"><?php echo $button_settings; ?></span>
-        </a>
-        <?php if ($account_url) { ?>
-        <a href="<?php echo $account_url; ?>" target="_blank" rel="noopener noreferrer" class="ovebotai-dash-card">
-          <span class="ovebotai-dash-card-icon"><i class="fa fa-external-link"></i></span>
-          <span class="ovebotai-dash-card-title"><?php echo $button_account; ?></span>
-        </a>
-        <?php } ?>
       </div>
 
       <?php if ($setup_url) { ?>
-      <div class="ovebotai-advanced-panel">
+      <a href="<?php echo htmlspecialchars($setup_url, ENT_QUOTES, 'UTF-8'); ?>" target="_blank" rel="noopener noreferrer" class="ovebotai-advanced-panel">
         <span class="ovebotai-advanced-icon"><i class="fa fa-sliders"></i></span>
-        <p class="ovebotai-advanced-text"><?php echo sprintf($text_advanced_settings, '<a href="' . htmlspecialchars($setup_url, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer">' . $text_link_here . '</a>'); ?></p>
-      </div>
+        <span class="ovebotai-advanced-body">
+          <span class="ovebotai-advanced-title"><?php echo $text_advanced_title; ?></span>
+          <span class="ovebotai-advanced-desc"><?php echo $text_advanced_desc; ?></span>
+        </span>
+        <span class="ovebotai-advanced-cta"><?php echo $button_open_account_settings; ?> &rarr;</span>
+      </a>
       <?php } ?>
 
-      <?php $ovebotai_account_link = $setup_url ? '<a href="' . htmlspecialchars($setup_url, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer">' . $text_account_settings . '</a>' : $text_account_settings; ?>
+      <?php
+      // "here" links pointing at the local settings page, deep-linked to the
+      // specific toggle (which is synced to the account) - safer than sending
+      // the merchant off to the Ovebot.ai account to change it.
+      $ovebotai_products_link = '<a href="' . $settings_products_highlight_url . '">' . $text_link_here . '</a>';
+      $ovebotai_order_link    = '<a href="' . $settings_order_highlight_url . '">' . $text_link_here . '</a>';
+      ?>
 
       <?php if ($products_recommend_enabled) { ?>
       <div class="ovebotai-dash-card-wide">
@@ -83,11 +93,21 @@
         <?php } ?>
       </div>
       <?php } else { ?>
-      <div class="ovebotai-notice ovebotai-notice-warning"><p><?php echo sprintf($text_products_recommend_off, $ovebotai_account_link); ?></p></div>
+      <div class="ovebotai-notice ovebotai-notice-warning ovebotai-notice-titled">
+        <div class="ovebotai-notice-content">
+          <span class="ovebotai-notice-title"><?php echo $text_products_recommend_off_title; ?></span>
+          <p><?php echo sprintf($text_products_recommend_off, $ovebotai_products_link); ?></p>
+        </div>
+      </div>
       <?php } ?>
 
       <?php if (!$order_api_enabled) { ?>
-      <div class="ovebotai-notice ovebotai-notice-warning"><p><?php echo sprintf($text_order_api_off, $ovebotai_account_link); ?></p></div>
+      <div class="ovebotai-notice ovebotai-notice-warning ovebotai-notice-titled">
+        <div class="ovebotai-notice-content">
+          <span class="ovebotai-notice-title"><?php echo $text_order_api_off_title; ?></span>
+          <p><?php echo sprintf($text_order_api_off, $ovebotai_order_link); ?></p>
+        </div>
+      </div>
       <?php } ?>
 
       <div class="ovebotai-fieldset">

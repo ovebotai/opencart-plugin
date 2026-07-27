@@ -1,5 +1,5 @@
 /* global jQuery */
-// Common Ovebot.ai admin script — loaded on every module view (setup,
+// Common Ovebot.ai admin script - loaded on every module view (setup,
 // dashboard, settings). View-specific behaviour lives in its own file
 // (e.g. setup.js); shared, cross-view behaviour belongs here.
 (function ($) {
@@ -9,7 +9,7 @@
 
 	$(function () {
 		// Any link/button with data-ovebotai-confirm="message" asks for
-		// confirmation before proceeding — used by the Disconnect links so a
+		// confirmation before proceeding - used by the Disconnect links so a
 		// misclick can't sever the Ovebot.ai connection.
 		$(document).on('click', '[data-ovebotai-confirm]', function (e) {
 			var message = $(this).data('ovebotai-confirm');

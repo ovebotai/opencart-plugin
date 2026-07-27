@@ -55,7 +55,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         // Before showing an authenticated view, confirm the connection is still
         // live. The probe runs apiRequest(), which clears a revoked/expired
         // token, so isSetupComplete() below then flips to false and drops
-        // through to the reconnect wizard on THIS load — instead of showing a
+        // through to the reconnect wizard on THIS load - instead of showing a
         // stale dashboard until the next refresh. Memoized, so the product
         // count during render reuses this same call.
         if ($this->isSetupComplete()) {
@@ -65,7 +65,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         }
 
         // Pull the account's live integration status once (memoized for the
-        // rest of the request) and reconcile local flags with it — e.g. order
+        // rest of the request) and reconcile local flags with it - e.g. order
         // tracking toggled off directly in the Ovebot.ai account is mirrored
         // back into module_ovebotai_order_enabled here.
         $this->ovebotai()->syncSettings();
@@ -94,13 +94,13 @@ class ControllerExtensionModuleOvebotai extends Controller {
         // Steps: 1 Connect, 2 Website pages, 3 Products, 4 Go live.
         $steps_seq = array(1, 2, 3, 4);
 
-        // The step we open on is dictated by state alone — never by the query
+        // The step we open on is dictated by state alone - never by the query
         // string. A stale ?step=2 left in the URL from an earlier OAuth return
         // used to strand a freshly-disconnected store on step 2 instead of the
         // reconnect step. Derivation:
         //   - not connected             -> step 1 (connect / reconnect)
         //   - connected, setup not done -> step 2 (continue with pages)
-        // (When connected AND setup is complete, index() never reaches here —
+        // (When connected AND setup is complete, index() never reaches here -
         // isSetupComplete() routes to the dashboard.)
         $initial_step = $connected ? 2 : 1;
 
@@ -109,7 +109,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $data = $this->commonData();
 
         // Titles come out of the DB HTML-entity-encoded (OpenCart's admin
-        // saves them that way, e.g. "About &amp; FAQ") — decode here so the
+        // saves them that way, e.g. "About &amp; FAQ") - decode here so the
         // .tpl's htmlspecialchars() doesn't double-encode them into
         // "About &amp;amp; FAQ" on screen. view_url points at the page's live
         // storefront URL, so a page that fails to sync can be checked (e.g.
@@ -128,7 +128,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $data['steps_seq']        = $steps_seq;
 
         $data['connect_url']     = $this->link('extension/module/ovebotai/connect');
-        $data['register_url']    = 'https://account.ovebot.ai/register';
+        $data['register_url']    = $ovebotai->getRegisterUrl();
         $data['sync_pages_url']  = $this->link('extension/module/ovebotai/syncPages');
         $data['sync_url']        = $this->link('extension/module/ovebotai/sync');
         $data['settings_url']    = $this->link('extension/module/ovebotai', '&view=settings');
@@ -147,7 +147,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         });
     }
 
-    // ── Dashboard (phase 2 — minimal) ────────────────────────────────────────
+    // ── Dashboard (phase 2 - minimal) ────────────────────────────────────────
 
     private function renderDashboard() {
         $ovebotai = $this->ovebotai();
@@ -166,13 +166,17 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $data['agent']         = $ovebotai->getAgent();
         $data['chat_status']   = $ovebotai->getChatStatus() ? 1 : 0;
         $data['settings_url']  = $this->link('extension/module/ovebotai', '&view=settings');
-        // Sends the settings screen straight to (and pulses) the chat toggle,
-        // so "enable it in settings" doesn't leave the merchant hunting for it.
-        $data['settings_chat_highlight_url'] = $this->link('extension/module/ovebotai', '&view=settings&highlight=oveChatStatus');
+        // Sends the settings screen straight to (and pulses) the relevant
+        // toggle, so a "turned off" notice doesn't leave the merchant hunting
+        // for it. These now point at the local settings page (the toggles are
+        // synced to the account) rather than the Ovebot.ai account.
+        $data['settings_chat_highlight_url']     = $this->link('extension/module/ovebotai', '&view=settings&highlight=oveChatStatus');
+        $data['settings_products_highlight_url'] = $this->link('extension/module/ovebotai', '&view=settings&highlight=oveProductsRecommend');
+        $data['settings_order_highlight_url']    = $this->link('extension/module/ovebotai', '&view=settings&highlight=oveOrderEnabled');
         $data['chat_url']      = $this->chatUrl($ovebotai);
         $data['disconnect_url'] = $this->link('extension/module/ovebotai/disconnect');
 
-        // Live figures from Ovebot.ai — the products it has indexed and the
+        // Live figures from Ovebot.ai - the products it has indexed and the
         // knowledge base entries feeding the agent.
         $data['account_url']    = $ovebotai->getAccountUrl();
         $data['products_url']   = $ovebotai->getProductsUrl();
@@ -251,7 +255,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         $ovebotai = $this->ovebotai();
 
-        // callback_url must be a clean URL for the external redirect back —
+        // callback_url must be a clean URL for the external redirect back -
         // url->link() HTML-encodes ampersands (&amp;), so decode them.
         $callback = html_entity_decode($this->link('extension/module/ovebotai'), ENT_QUOTES, 'UTF-8');
 
@@ -274,7 +278,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $result = $ovebotai->handleCallback($code, $state);
 
         // Redirect to a clean URL either way so a browser refresh can't replay
-        // the (now-consumed) authorization code. No &step= is appended — the
+        // the (now-consumed) authorization code. No &step= is appended - the
         // rendered step is derived from state (see renderSetup): back from a
         // successful OAuth the store is connected, so the wizard opens on step
         // 2 on its own (or the dashboard, if setup was already complete).
@@ -304,12 +308,12 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
     // ── Step 2: page sync (AJAX) ─────────────────────────────────────────────
 
-    // Fired on every "Next" click from step 2 — sync-per-step instead of one
+    // Fired on every "Next" click from step 2 - sync-per-step instead of one
     // giant sync at the end. Whatever couldn't be sent (real API error, or an
     // intentional skip like "not enough text") comes back keyed by
     // information_id in 'failed'; the frontend unchecks those boxes, shows the
     // message under each, and keeps the user on step 2 for another attempt.
-    // Re-sending everything checked on every attempt is intentional — no
+    // Re-sending everything checked on every attempt is intentional - no
     // "only send what changed" bookkeeping, so a page fixed elsewhere and
     // re-checked just goes through normally next time.
     public function syncPages() {
@@ -337,7 +341,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         try {
             $result = $ovebotai->syncKbPages($page_ids, true);
         } catch (\Ovebotai\Exceptions\OvebotaiException $e) {
-            // Couldn't even reach the API (connection/auth) — every requested
+            // Couldn't even reach the API (connection/auth) - every requested
             // page is equally "failed", same message on each.
             foreach ($page_ids as $information_id) {
                 $result['failed'][$information_id] = $e->getMessage();
@@ -358,7 +362,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
     // Page sync already happened per-step (see syncPages() above), so all
     // that's left here is the products-feed choice from step 3 (only
-    // persisted now, at Finish — see resyncSetup()) and pushing the whole
+    // persisted now, at Finish - see resyncSetup()) and pushing the whole
     // /setup payload (widget language, products, order lookup credentials).
     public function sync() {
         $this->load->language('extension/module/ovebotai');
@@ -553,7 +557,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         return $data;
     }
 
-    // Every non-error key the language file defines — templates get the whole
+    // Every non-error key the language file defines - templates get the whole
     // set via commonData() without this list needing to be kept in sync by
     // hand every time a key is added. error_* is excluded: those are only
     // ever used directly via $this->language->get('error_...') in flash
@@ -580,7 +584,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         // These keys have no field in the form. editSetting() replaces the
         // whole `module_ovebotai` group, so re-populate them from the stored
-        // config here — otherwise a settings save wipes the tokens / setup
+        // config here - otherwise a settings save wipes the tokens / setup
         // state / storefront credentials.
         $this->request->post['module_ovebotai_access_token']   = $this->config->get('module_ovebotai_access_token');
         $this->request->post['module_ovebotai_refresh_token']  = $this->config->get('module_ovebotai_refresh_token');
@@ -608,7 +612,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
     }
 
     // Opens the storefront's own chat widget (auto-opened), not Ovebot.ai's
-    // hosted UI — the storefront's footer event handler
+    // hosted UI - the storefront's footer event handler
     // (catalog/controller/extension/module/ovebotai.php index()) only honours
     // ?auto-open-chat=true when the visitor's session also carries this same
     // admin's login token, so this link is meaningless outside an active
@@ -636,7 +640,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         return $this->url->link($route, $this->tokenQs() . $args, true);
     }
 
-    // The token query-string fragment for the current OpenCart version —
+    // The token query-string fragment for the current OpenCart version -
     // "token=XXX" on 2.3, "user_token=XXX" on 3.x. Everything that builds an
     // admin URL (here or in a template) appends this instead of hardcoding a
     // key, so the module stays correct across both versions.

@@ -7,7 +7,7 @@
 	$(function () {
 
 		// ── Unsaved changes guard ────────────────────────────────────────────
-		// No change-tracking state to keep in sync — just diff the form's
+		// No change-tracking state to keep in sync - just diff the form's
 		// current serialization against its initial one at the moment the
 		// browser actually asks, so an edit that's later undone (typed then
 		// untyped) doesn't leave a stale "dirty" flag behind.
@@ -49,14 +49,14 @@
 				.done(function (resp) {
 					var msg = resp && resp.message ? resp.message : (resp && resp.success ? cfg.i18n.saved : cfg.i18n.error);
 					var warnings = resp && resp.warnings;
-					// needs_reconnect has no warnings list of its own — it's a single
+					// needs_reconnect has no warnings list of its own - it's a single
 					// caveat on the save itself, so it still takes over the main notice.
 					var needsReconnect = resp && resp.success && resp.needs_reconnect && !(warnings && warnings.length);
 					showNotice(!needsReconnect && resp && resp.success, msg, needsReconnect ? 'warning' : null);
 					showWarnings(resp && resp.success ? warnings : null);
 
 					if (resp && resp.success) {
-						// Saved state is now the new baseline — further edits are
+						// Saved state is now the new baseline - further edits are
 						// judged against it, not the page-load snapshot.
 						initialSerialized = $oveForm.serialize();
 					}
@@ -204,7 +204,7 @@
 			}
 		}
 
-		// ── Defensive: not connected — send back to the dashboard's reconnect
+		// ── Defensive: not connected - send back to the dashboard's reconnect
 		// panel instead of showing a half-usable form. Structurally unreachable
 		// today (index() only reaches this view when isSetupComplete() already
 		// implies a live connection), kept as a safety net mirroring the
@@ -214,7 +214,7 @@
 		}
 
 		// ── Highlight a field via ?highlight=<id> ────────────────────────────
-		// Generic, not chat-specific — anything linking here can point at any
+		// Generic, not chat-specific - anything linking here can point at any
 		// field id (e.g. the dashboard's "chat disabled" card uses
 		// oveChatStatus) and have it scrolled into view + pulsed a few times
 		// so it's obvious what to look at, instead of leaving the merchant to

@@ -35,7 +35,7 @@ class Client {
     // Random code_verifier. random_bytes/random_compat needs PHP 7+ (or the
     // random_compat polyfill); calling a function that doesn't exist at all is
     // an uncatchable fatal on PHP 5 (no Throwable, and there's nothing to
-    // catch — the call never returns), so this must check function_exists()
+    // catch - the call never returns), so this must check function_exists()
     // rather than rely on try/catch.
     public static function generateVerifier() {
         return self::b64url(self::randomBytes(48));
@@ -81,7 +81,7 @@ class Client {
     // ── Token endpoints ──────────────────────────────────────────────────────
 
     // Returns the decoded token payload (access_token, refresh_token, workspace,
-    // agent, …). Throws AuthException on failure — nothing to return without tokens.
+    // agent, …). Throws AuthException on failure - nothing to return without tokens.
     public function exchangeCode($code, $verifier) {
         return $this->tokenRequest(array(
             'grant_type'    => 'authorization_code',
@@ -122,7 +122,7 @@ class Client {
     // ── Authenticated API ────────────────────────────────────────────────────
 
     // One round trip against the API host with the current token. No refresh/retry
-    // here — that's the orchestrator's job (so it can persist rotated tokens).
+    // here - that's the orchestrator's job (so it can persist rotated tokens).
     public function apiRequest($method, $path, $body = null) {
         $headers = array(
             'Authorization: Bearer ' . $this->accessToken,

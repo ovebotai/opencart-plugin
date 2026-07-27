@@ -9,7 +9,7 @@ class ModelExtensionModuleOvebotai extends Model {
 
     // ── Products feed ─────────────────────────────────────────────────────────
 
-    // Enabled, in-stock, priced products only — same filter as the admin
+    // Enabled, in-stock, priced products only - same filter as the admin
     // wizard's "feed_count" preview (see admin/model/.../ovebotai.php
     // getProductCounts()), so what the wizard promises is what actually ships.
     public function getProductsFeed($language_id, $store_id, $customer_group_id) {
@@ -106,7 +106,7 @@ class ModelExtensionModuleOvebotai extends Model {
         return $product_attributes;
     }
 
-    // Choice-based product options (select/radio/checkbox — anything with
+    // Choice-based product options (select/radio/checkbox - anything with
     // option values, e.g. "Culoare: Rosu | Maro | Mov"). Text/date/file-type
     // options have no option_value rows so they're naturally excluded here.
     // Folded into the same 'attributes' map as getProductsAttributes() (one
@@ -199,8 +199,8 @@ class ModelExtensionModuleOvebotai extends Model {
 
     // $type is 'email' or 'phone', $value already validated/normalized by the
     // controller. AWB/carrier/tracking_url come from the first shipping
-    // module (Label_finder) that has one for this order — null when none
-    // do. estimated_delivery is always null — the delivery-estimate feature
+    // module (Label_finder) that has one for this order - null when none
+    // do. estimated_delivery is always null - the delivery-estimate feature
     // was dropped along with its settings-form panel, but the key stays
     // present so Ovebot.ai's response shape is unchanged.
     public function getOrderData($order_id, $type, $value) {
@@ -246,7 +246,7 @@ class ModelExtensionModuleOvebotai extends Model {
     }
 
     // Label_finder::findOrderLabel() with returnFirst = true returns a
-    // single-entry array(order_id => array(...)) or null — this unwraps to
+    // single-entry array(order_id => array(...)) or null - this unwraps to
     // just the details array (or null).
     private function findOrderLabel($order_id) {
         $this->load->library('label_finder');
