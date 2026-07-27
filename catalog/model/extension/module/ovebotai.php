@@ -238,7 +238,6 @@ class ModelExtensionModuleOvebotai extends Model {
             'status'             => $order['order_status'] !== null ? $order['order_status'] : '',
             'total'              => round((float)$order['total'], 2),
             'currency'           => $order['currency_code'],
-            'estimated_delivery' => null,
             'carrier'            => $label !== null ? $label['name'] : null,
             'awb'                => $label !== null ? $label['awb'] : null,
             'awb_tracking_url'   => $label !== null ? $label['tracking_url'] : null,

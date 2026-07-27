@@ -723,7 +723,7 @@ a.ovebotai-dash-card-wide-count:hover { text-decoration: underline; }
 .ovebotai-switch input:checked + .ovebotai-switch-slider { background: #2271b1; }
 .ovebotai-switch input:checked + .ovebotai-switch-slider::before { transform: translateX(18px); }
 
-.ovebotai-switch-lbl { font-size: 13px; color: #50575e; }
+.ovebotai-switch-lbl { font-size: 13px; color: #50575e; min-width: 63px; }
 
 /* ── Appearance panel ────────────────────────────────────────────────────── */
 
