@@ -20,6 +20,7 @@ jobs:
           cp -r admin catalog system build/upload/
           cp README.md build/
           cd build
+          rm -rf upload/system/ovebotai_custom.ocmod.xml
           zip -r ../ovebotai.ocmod.zip .
 
       - name: Upload asset
