@@ -210,6 +210,12 @@ See all plans and pricing on the [Ovebot.ai website](https://ovebot.ai).
 
 ## Changelog
 
+### 1.1.0
+
+- Add to cart from chat: new "Add to cart button" setting, synced with your Ovebot.ai account. Recommended products can be added to the cart straight from the conversation, and the chat follows the visitor's cart.
+- Product feed: new optional `sku`, `gtin` (from the product's EAN) and `additional_image_link` columns.
+- Purchase tracking now sends the ordered items, with amounts in the order's own currency.
+
 ### 1.0.0
 
 - Initial release.

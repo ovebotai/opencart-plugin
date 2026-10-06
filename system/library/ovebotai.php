@@ -16,7 +16,7 @@ use Ovebotai\Exceptions\OvebotaiException;
 // access; construct directly ($this->load->library() can't resolve a namespace).
 class Ovebotai extends \Model {
     // Plugin version - bump here on release; surfaced via getModuleVersion().
-    const VERSION = '1.0.0';
+    const VERSION = '1.1.0';
 
     private $client;
 
@@ -397,11 +397,16 @@ class Ovebotai extends \Model {
         // (module_ovebotai_products_recommend) and is always sent. feed_url +
         // currency only when OUR feed is the source; for a merchant's own feed we
         // send `enabled` alone (the API keeps their feed_url).
-        $products = array('enabled' => $this->getProductsRecommend());
+        // products.add_to_cart mirrors the local "Add to cart" switch and is always
+        // sent too: the storefront only exposes ovebotaiAddToCart() when it's on.
+        $products = array(
+            'enabled'     => $this->getProductsRecommend(),
+            'add_to_cart' => $this->getAddToCart(),
+        );
 
         if ($this->getProductsEnabled()) {
             $products['feed_url'] = $base . 'index.php?route=extension/module/ovebotai/feed&hash=' . urlencode($feedHash);
-            $products['currency'] = (string)$this->config->get('config_currency');
+            $products['currency'] = self::currencyCode($this->config->get('config_currency'));
         }
 
         if (isset($overrides['products'])) {
@@ -534,17 +539,13 @@ class Ovebotai extends \Model {
         return $ws !== '' ? 'https://' . $ws . '.ovebot.ai/knowledge-base/create' : '';
     }
 
-    // "Start Free" target: the account register page with the OpenCart freemium
-    // plan slug (oc-freemium; wp-/spfy- on the other platforms) and the store's
-    // domain pre-filled. The account side checks the slug against the active
-    // freemium plan - if it's closed, it falls back to a normal register and
-    // shows the "not accepting free plans right now" notice.
+    // "Start Free" target: the account register page with the store's domain
+    // pre-filled.
     public function getRegisterUrl() {
         $host = (string)$this->config->get('module_ovebotai_account_host');
         $host = $host !== '' ? $host : 'account.ovebot.ai';
 
         return 'https://' . $host . '/register?' . http_build_query(array(
-            'plan'   => 'oc-freemium',
             'domain' => $this->siteDomain(),
         ));
     }
@@ -583,6 +584,18 @@ class Ovebotai extends \Model {
 
     public function setProductsRecommend($enabled) {
         $this->persist(array('module_ovebotai_products_recommend' => $enabled ? '1' : '0'));
+    }
+
+    // Local mirror of the account's products.add_to_cart: the switch writes here +
+    // pushes via buildSetupPayload. Default never-set = on, same as product
+    // recommendation - so finishing the wizard enables it in the account too.
+    public function getAddToCart() {
+        $raw = $this->config->get('module_ovebotai_add_to_cart');
+        return $raw === null || $raw === '' ? true : ($raw === '1' || $raw === 1 || $raw === true);
+    }
+
+    public function setAddToCart($enabled) {
+        $this->persist(array('module_ovebotai_add_to_cart' => $enabled ? '1' : '0'));
     }
 
     // Local mirror of the account's order_info.enabled: the switch writes here +
@@ -667,13 +680,14 @@ class Ovebotai extends \Model {
 
     // Saves chat + widget + switches locally, then pushes to /setup when connected
     // (skipped while disconnected). Returns needs_reconnect / sync_error.
-    public function saveSettings($chatStatus, array $widget, $productsEnabled = true, $orderEnabled = true, $productsRecommend = true) {
+    public function saveSettings($chatStatus, array $widget, $productsEnabled = true, $orderEnabled = true, $productsRecommend = true, $addToCart = false) {
         $partial = array(
             'module_ovebotai_chat_status'        => $chatStatus ? '1' : '0',
             'module_ovebotai_widget'             => $widget,
             'module_ovebotai_products_enabled'   => $productsEnabled ? '1' : '0',
             'module_ovebotai_order_enabled'      => $orderEnabled ? '1' : '0',
             'module_ovebotai_products_recommend' => $productsRecommend ? '1' : '0',
+            'module_ovebotai_add_to_cart'        => $addToCart ? '1' : '0',
         );
 
         if (!$this->isConnected()) {
@@ -897,5 +911,54 @@ class Ovebotai extends \Model {
     private function siteDomain() {
         $host = parse_url($this->catalogBase(), PHP_URL_HOST);
         return $host ? $host : '';
+    }
+
+    // Ovebot.ai expects ISO 4217 codes; Romanian stores often keep the leu under
+    // the legacy code "LEI". Same mapping as the storefront model's currencyCode().
+    public static function currencyCode($code) {
+        $code = (string)$code;
+        return strtoupper($code) === 'LEI' ? 'RON' : $code;
+    }
+
+    // ── TEMP: API debug (remove before release) ──────────────────────────────
+
+    // Read-only dump of what the API returns for this connection, used to find
+    // where the account's add_to_cart flag lives. Secrets are masked.
+    public function debugApi() {
+        $paths = array(
+            'integration_status' => '/v1/integration/status',
+            'setup'              => $this->setupApiPath(),
+            'me'                 => '/v1/me',
+        );
+
+        $out = array();
+
+        foreach ($paths as $name => $path) {
+            try {
+                $result = $this->apiRequest('GET', $path);
+                $out[$name] = array('path' => $path, 'status' => $result['status'], 'body' => self::maskSecrets($result['body']));
+            } catch (OvebotaiException $e) {
+                $out[$name] = array('path' => $path, 'error' => $e->getMessage());
+            }
+        }
+
+        return $out;
+    }
+
+    private static function maskSecrets($value) {
+        if (!is_array($value)) {
+            // e.g. the feed hash inside products.feed_url
+            return is_string($value) ? preg_replace('/(hash=)[^&]+/i', '$1***', $value) : $value;
+        }
+
+        foreach ($value as $key => $item) {
+            if (is_string($key) && preg_match('/pass|token|secret|api_user|hash/i', $key) && !is_array($item)) {
+                $value[$key] = '***';
+            } else {
+                $value[$key] = self::maskSecrets($item);
+            }
+        }
+
+        return $value;
     }
 }

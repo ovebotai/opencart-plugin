@@ -20,9 +20,10 @@ class ModelExtensionModuleOvebotai extends Model {
         $product_categories = $this->getProductsLongestCategoryPath($language_id);
         $product_attributes = $this->getProductsAttributes($language_id);
         $product_options    = $this->getProductsOptions($language_id);
+        $product_images     = $this->getProductsImages();
 
         $query = $this->db->query("
-            SELECT p.product_id, p.sku, p.model, pd.name, pd.description, p.image, m.name AS manufacturer,
+            SELECT p.product_id, p.sku, p.ean, p.model, pd.name, pd.description, p.image, m.name AS manufacturer,
                    p.quantity, p.price, p.tax_class_id,
                    (SELECT price FROM `" . DB_PREFIX . "product_special` ps
                     WHERE ps.product_id = p.product_id AND ps.customer_group_id = '" . $customer_group_id . "'
@@ -59,7 +60,7 @@ class ModelExtensionModuleOvebotai extends Model {
                 $attributes = array_merge($attributes, $product_options[$pid]);
             }
 
-            $data[] = array(
+            $item = array(
                 'ref'          => $ref,
                 'name'         => $name,
                 'description'  => $desc,
@@ -69,15 +70,171 @@ class ModelExtensionModuleOvebotai extends Model {
                 'quantity'     => (int)$row['quantity'],
                 'price'        => $price,
                 'special'      => $special,
-                'currency'     => $this->config->get('config_currency'),
-                'image'        => !empty($row['image']) ? $this->imageBase() . html_entity_decode($row['image'], ENT_QUOTES, 'UTF-8') : null,
+                'currency'     => $this->currencyCode($this->config->get('config_currency')),
+                'image'      => !empty($row['image']) ? $this->imageBase() . html_entity_decode($row['image'], ENT_QUOTES, 'UTF-8') : null,
                 'url'          => html_entity_decode($this->url->link('product/product', 'product_id=' . $pid), ENT_QUOTES, 'UTF-8'),
                 'attributes'   => $attributes,
                 // 'lang'         => $this->config->get('config_language'),
             );
+
+            // Optional columns - only present when the product has a value.
+            if (trim((string)$row['sku']) !== '') {
+                $item['sku'] = trim(html_entity_decode($row['sku'], ENT_QUOTES, 'UTF-8'));
+            }
+
+            if (trim((string)$row['ean']) !== '') {
+                $item['gtin'] = trim($row['ean']);
+            }
+
+            if (!empty($product_images[$pid])) {
+                $item['additional_image_link'] = $product_images[$pid];
+            }
+
+            $data[] = $item;
         }
 
         return $data;
+    }
+
+    // Additional product images (product_image table), as absolute URLs in
+    // sort order - feeds the 'additional_image_link' column.
+    private function getProductsImages() {
+        $query = $this->db->query("
+            SELECT pi.product_id, pi.image
+            FROM `" . DB_PREFIX . "product_image` pi
+            WHERE pi.image != ''
+            ORDER BY pi.product_id, pi.sort_order ASC
+        ");
+
+        $base = $this->imageBase();
+
+        $product_images = array();
+
+        foreach ($query->rows as $row) {
+            $product_images[(int)$row['product_id']][] = $base . html_entity_decode($row['image'], ENT_QUOTES, 'UTF-8');
+        }
+
+        return $product_images;
+    }
+
+    // Ovebot.ai expects ISO 4217 codes; Romanian stores often keep the leu under
+    // the legacy code "LEI".
+    public function currencyCode($code) {
+        $code = (string)$code;
+        return strtoupper($code) === 'LEI' ? 'RON' : $code;
+    }
+
+    // ── Cart (add-to-cart from chat) ──────────────────────────────────────────
+
+    // The visitor's cart in the shape the widget expects for cart_count /
+    // cart_items and for ovebot_ai.push(['cart', ...]): 'ref' is the product id
+    // (same as the feed), 'price' is the unit price computed like the feed's
+    // (tax per config_tax) in the visitor's currency, 'sku' only when set.
+    public function getCartData() {
+        $currency = isset($this->session->data['currency']) ? (string)$this->session->data['currency'] : (string)$this->config->get('config_currency');
+        $products = $this->cart->getProducts();
+
+        $skus = array();
+
+        if ($products) {
+            $ids = array();
+            foreach ($products as $product) {
+                $ids[] = (int)$product['product_id'];
+            }
+
+            $query = $this->db->query("SELECT product_id, sku FROM `" . DB_PREFIX . "product` WHERE product_id IN (" . implode(',', $ids) . ")");
+
+            foreach ($query->rows as $row) {
+                $skus[(int)$row['product_id']] = trim(html_entity_decode((string)$row['sku'], ENT_QUOTES, 'UTF-8'));
+            }
+        }
+
+        $count = 0;
+        $items = array();
+
+        foreach ($products as $product) {
+            $pid      = (int)$product['product_id'];
+            $quantity = (int)$product['quantity'];
+
+            if ($quantity <= 0) {
+                continue;
+            }
+
+            $unit_price = $this->tax->calculate($product['price'], $product['tax_class_id'], $this->config->get('config_tax'));
+
+            $item = array('ref' => (string)$pid);
+
+            if (!empty($skus[$pid])) {
+                $item['sku'] = $skus[$pid];
+            }
+
+            $item['name']     = strip_tags(html_entity_decode($product['name'], ENT_QUOTES, 'UTF-8'));
+            $item['price']    = $this->convert($unit_price, $currency, '');
+            $item['currency'] = $this->currencyCode($currency);
+            $item['quantity'] = $quantity;
+
+            $items[] = $item;
+            $count  += $quantity;
+        }
+
+        return array('count' => $count, 'items' => $items);
+    }
+
+    // ── Purchase event ───────────────────────────────────────────────────────
+
+    // Payload for ovebot_ai.push(['purchase', ...]) on the checkout success page:
+    // amounts in the order's own currency, one item per order line with
+    // item_id = product id (the feed's 'ref') and the unit price like the feed's.
+    public function getPurchaseData($order_id) {
+        $order_id = (int)$order_id;
+
+        $query = $this->db->query(
+            "SELECT `total`, `currency_code`, `currency_value` FROM `" . DB_PREFIX . "order`
+             WHERE `order_id` = '" . $order_id . "'
+             LIMIT 1"
+        );
+
+        if (!$query->num_rows) {
+            return null;
+        }
+
+        $order = $query->row;
+
+        $products = $this->db->query(
+            "SELECT `product_id`, `name`, `price`, `tax`, `quantity` FROM `" . DB_PREFIX . "order_product`
+             WHERE `order_id` = '" . $order_id . "'
+             ORDER BY `order_product_id` ASC"
+        );
+
+        $items = array();
+
+        foreach ($products->rows as $product) {
+            $unit_price = $product['price'] + ($this->config->get('config_tax') ? $product['tax'] : 0);
+
+            $items[] = array(
+                'item_id'   => (string)(int)$product['product_id'],
+                'item_name' => strip_tags(html_entity_decode($product['name'], ENT_QUOTES, 'UTF-8')),
+                'price'     => $this->convert($unit_price, $order['currency_code'], $order['currency_value']),
+                'quantity'  => (int)$product['quantity'],
+            );
+        }
+
+        return array(
+            'transaction_id' => $order_id,
+            'total'          => $this->convert($order['total'], $order['currency_code'], $order['currency_value']),
+            'currency'       => $this->currencyCode($order['currency_code']),
+            'items'          => $items,
+        );
+    }
+
+    // Base-currency amount -> the given currency, as a plain rounded number.
+    // Left unconverted when the store no longer has that currency.
+    private function convert($amount, $currency, $value) {
+        if ($this->currency->has($currency)) {
+            return round((float)$this->currency->format($amount, $currency, $value, false), 2);
+        }
+
+        return round((float)$amount, 2);
     }
 
     private function getProductsAttributes($language_id) {

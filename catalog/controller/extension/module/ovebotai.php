@@ -11,6 +11,9 @@
 // data building lives in the model (catalog/model/extension/module/ovebotai.php).
 class ControllerExtensionModuleOvebotai extends Controller {
 
+    // Cache-buster for catalog/view/javascript/ovebotai/cart.js - bump when that file changes.
+    const CART_SCRIPT_VERSION = '1.1.0';
+
     // Fired by the 'catalog/controller/common/footer/after' event registered
     // on install (see admin/model/.../ovebotai.php addEvents()) - OC's
     // controller/after signature passes $route/$args/$output by reference so
@@ -33,12 +36,39 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         $options = $this->widgetOptions();
 
-        $options_json = json_encode($options, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        // "Add to cart" from chat: the widget calls window.ovebotaiAddToCart
+        // (defined by cart.js, which also re-sends the cart after every change)
+        // and gets the current cart with the page.
+        $cart_script = '';
+
+        if ($this->addToCartEnabled()) {
+            $this->load->model('extension/module/ovebotai');
+
+            $cart = $this->model_extension_module_ovebotai->getCartData();
+
+            $options['add_to_cart']  = 'ovebotaiAddToCart';
+            $options['cart_url']     = html_entity_decode($this->url->link('checkout/cart'), ENT_QUOTES, 'UTF-8');
+            $options['checkout_url'] = html_entity_decode($this->url->link('checkout/checkout', '', true), ENT_QUOTES, 'UTF-8');
+            $options['cart_count']   = $cart['count'];
+            $options['cart_items']   = $cart['items'];
+
+            // On checkout pages the cart is already rendered in the page, so cart.js
+            // reloads it after a successful add. Flagged here by route; cart.js also
+            // checks the address bar, for SEO URLs / custom checkout extensions.
+            $route    = isset($this->request->get['route']) ? (string)$this->request->get['route'] : '';
+            $checkout = stripos($route, 'checkout') !== false ? ' data-checkout="1"' : '';
+
+            $cart_script = '<script src="catalog/view/javascript/ovebotai/cart.js?v=' . self::CART_SCRIPT_VERSION . '"' . $checkout . '></script>' . "\n";
+        }
+
+        // JSON_HEX_TAG: product names end up inside this inline <script>.
+        $options_json = json_encode($options, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
 
         $snippet = "\n<script>\n"
             . "  var ovebot_ai = ovebot_ai || [];\n"
             . "  ovebot_ai.push(['chat', " . $options_json . "]);\n"
             . "</script>\n"
+            . $cart_script
             . '<script src="https://' . $workspace . '.ovebot.ai/widget/chat-loader.js"></script>' . "\n";
 
         if (strpos($output, '</body>') !== false) {
@@ -46,6 +76,31 @@ class ControllerExtensionModuleOvebotai extends Controller {
         } else {
             $output .= $snippet;
         }
+    }
+
+    // The settings screen's "Add to cart button" switch (module_ovebotai_add_to_cart,
+    // synced with the account's products.add_to_cart). Empty / never-set defaults
+    // to on, same rule as getAddToCart() in the library.
+    private function addToCartEnabled() {
+        return (string)$this->config->get('module_ovebotai_add_to_cart') !== '0';
+    }
+
+    // POST index.php?route=extension/module/ovebotai/cart - the visitor's current
+    // cart ({ count, items }), fetched by cart.js after every cart change and
+    // forwarded to the widget as ovebot_ai.push(['cart', ...]). Same gates as the
+    // widget itself: a disabled chat / switched-off add-to-cart exposes nothing.
+    public function cart() {
+        $this->response->addHeader('Content-Type: application/json; charset=utf-8');
+
+        if ((string)$this->config->get('module_ovebotai_chat_status') !== '1' || !$this->addToCartEnabled()) {
+            $this->response->addHeader('HTTP/1.1 403 Forbidden');
+            $this->response->setOutput(json_encode(array('error' => 'Forbidden')));
+            return;
+        }
+
+        $this->load->model('extension/module/ovebotai');
+
+        $this->response->setOutput(json_encode($this->model_extension_module_ovebotai->getCartData(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
     // Only the parameters this module actually collects (from the settings
@@ -135,16 +190,16 @@ class ControllerExtensionModuleOvebotai extends Controller {
             return;
         }
 
-        $order = $this->getPurchaseOrderData($order_id);
-        if (!$order) {
+        // transaction_id / total / currency plus the order lines as 'items'.
+        $this->load->model('extension/module/ovebotai');
+
+        $purchase = $this->model_extension_module_ovebotai->getPurchaseData($order_id);
+        if (!$purchase) {
             return;
         }
 
-        $payload = json_encode(array(
-            'transaction_id' => $order_id,
-            'total'          => $order['total'],
-            'currency'       => $order['currency'],
-        ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        // JSON_HEX_TAG: product names end up inside this inline <script>.
+        $payload = json_encode($purchase, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
 
         $snippet = "\n<script type=\"text/javascript\">\n"
             . "  var ovebot_ai = ovebot_ai || [];\n"
@@ -157,23 +212,6 @@ class ControllerExtensionModuleOvebotai extends Controller {
         } else {
             $output .= $snippet;
         }
-    }
-
-    private function getPurchaseOrderData($order_id) {
-        $query = $this->db->query(
-            "SELECT `total`, `currency_code` FROM `" . DB_PREFIX . "order`
-             WHERE `order_id` = '" . (int)$order_id . "'
-             LIMIT 1"
-        );
-
-        if (!$query->num_rows) {
-            return null;
-        }
-
-        return array(
-            'total'    => round((float)$query->row['total'], 2),
-            'currency' => $query->row['currency_code'],
-        );
     }
 
     // GET .../module_ovebotai/feed&hash=XXX - product feed, gated by the hash

@@ -87,6 +87,18 @@
             </div>
 
             <div class="ovebotai-field ovebotai-field-switch">
+              <label><?php echo $entry_add_to_cart; ?></label>
+              <div class="ovebotai-switch-wrap">
+                <label class="ovebotai-switch">
+                  <input type="checkbox" name="add_to_cart" id="oveAddToCart" value="1"<?php echo $add_to_cart ? ' checked' : ''; ?>>
+                  <span class="ovebotai-switch-slider"></span>
+                </label>
+                <span class="ovebotai-switch-lbl" id="oveAddToCartLbl"><?php echo $add_to_cart ? $text_enabled : $text_disabled; ?></span>
+              </div>
+              <p class="description"><?php echo $help_add_to_cart; ?></p>
+            </div>
+
+            <div class="ovebotai-field ovebotai-field-switch">
               <label><?php echo $entry_products_enabled; ?></label>
               <div class="ovebotai-switch-wrap">
                 <label class="ovebotai-switch">

@@ -113,6 +113,8 @@ $_['button_copy']              = 'Copiază';
 $_['button_regen_hash']        = 'Regenerează codul';
 $_['entry_products_recommend'] = 'Recomandă produse';
 $_['help_products_recommend']  = 'Când e activată, agentul tău AI recomandă produse din catalogul tău în conversații.';
+$_['entry_add_to_cart']        = 'Buton Adaugă în coș';
+$_['help_add_to_cart']         = 'Când e activat, produsele recomandate primesc în chat un buton „Adaugă în coș", iar chatul afișează coșul vizitatorului. Se sincronizează cu contul tău Ovebot.ai.';
 $_['entry_products_enabled']   = 'Folosește feed-ul de produse integrat';
 $_['help_products_enabled']    = 'Când e dezactivat, URL-ul feed-ului nostru încetează să funcționeze (întoarce Forbidden), iar Ovebot.ai nu mai este anunțat de el. Dacă ai un feed personalizat, configurează-l direct la:';
 

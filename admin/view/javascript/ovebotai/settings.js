@@ -88,6 +88,12 @@
 			$('#oveProductsRecommendLbl').text($(this).is(':checked') ? cfg.i18n.enabled : cfg.i18n.disabled);
 		});
 
+		// ── Toggle add-to-cart label ─────────────────────────────────────────
+
+		$('#oveAddToCart').on('change', function () {
+			$('#oveAddToCartLbl').text($(this).is(':checked') ? cfg.i18n.enabled : cfg.i18n.disabled);
+		});
+
 		// ── Toggle products-enabled label + feed URL row ─────────────────────
 
 		$('#oveProductsEnabled').on('change', function () {

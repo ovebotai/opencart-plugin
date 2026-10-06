@@ -219,6 +219,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $data['widget']           = $ovebotai->getWidget();
         $data['products_enabled']   = $ovebotai->getProductsEnabled() ? 1 : 0;
         $data['products_recommend'] = $ovebotai->getProductsRecommend() ? 1 : 0;
+        $data['add_to_cart']        = $ovebotai->getAddToCart() ? 1 : 0;
         $data['order_enabled']      = $ovebotai->getOrderEnabled() ? 1 : 0;
         $data['setup_url']          = $ovebotai->getSetupUrl();
 
@@ -434,8 +435,9 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $productsEnabled   = !empty($this->request->post['products_enabled']);
         $orderEnabled      = !empty($this->request->post['order_enabled']);
         $productsRecommend = !empty($this->request->post['products_recommend']);
+        $addToCart         = !empty($this->request->post['add_to_cart']);
 
-        $result = $this->ovebotai()->saveSettings($chatStatus, $widget, $productsEnabled, $orderEnabled, $productsRecommend);
+        $result = $this->ovebotai()->saveSettings($chatStatus, $widget, $productsEnabled, $orderEnabled, $productsRecommend, $addToCart);
 
         $json['success'] = true;
 
@@ -511,6 +513,29 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         $this->response->addHeader('Content-Type: application/json');
         $this->response->setOutput(json_encode($json));
+    }
+
+    // ── TEMP: API debug (remove before release) ──────────────────────────────
+
+    // index.php?route=extension/module/ovebotai/debugIntegration&token=... (user_token= on 3.x)
+    // Read-only: prints what the Ovebot.ai API returns for this connection.
+    public function debugIntegration() {
+        exit();
+        $this->load->language('extension/module/ovebotai');
+
+        if (!$this->user->hasPermission('modify', 'extension/module/ovebotai')) {
+            $out = array('error' => $this->language->get('error_permission'));
+        } else {
+            $out = $this->ovebotai()->debugApi();
+            $out['local'] = array(
+                'add_to_cart'        => $this->config->get('module_ovebotai_add_to_cart'),
+                'products_recommend' => $this->config->get('module_ovebotai_products_recommend'),
+                'order_enabled'      => $this->config->get('module_ovebotai_order_enabled'),
+            );
+        }
+
+        $this->response->addHeader('Content-Type: application/json; charset=utf-8');
+        $this->response->setOutput(json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 
     // ── Install / uninstall ──────────────────────────────────────────────────
@@ -601,6 +626,7 @@ class ControllerExtensionModuleOvebotai extends Controller {
         $this->request->post['module_ovebotai_products_enabled']   = $this->config->get('module_ovebotai_products_enabled');
         $this->request->post['module_ovebotai_order_enabled']      = $this->config->get('module_ovebotai_order_enabled');
         $this->request->post['module_ovebotai_products_recommend'] = $this->config->get('module_ovebotai_products_recommend');
+        $this->request->post['module_ovebotai_add_to_cart']        = $this->config->get('module_ovebotai_add_to_cart');
 
         return !$this->error;
     }

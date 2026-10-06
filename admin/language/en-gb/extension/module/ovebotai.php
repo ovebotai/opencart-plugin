@@ -113,6 +113,8 @@ $_['button_copy']              = 'Copy';
 $_['button_regen_hash']        = 'Regenerate hash';
 $_['entry_products_recommend'] = 'Recommend products';
 $_['help_products_recommend']  = 'When enabled, your AI agent recommends products from your catalog in conversations.';
+$_['entry_add_to_cart']        = 'Add to cart button';
+$_['help_add_to_cart']         = 'When enabled, recommended products get an "Add to cart" button in the chat and the chat shows the visitor\'s cart. Synced with your Ovebot.ai account.';
 $_['entry_products_enabled']   = 'Use the built-in product feed';
 $_['help_products_enabled']    = 'When off, our own feed URL stops working (returns Forbidden) and Ovebot.ai won\'t be told about it. If you have a custom feed, configure it directly at:';
 
