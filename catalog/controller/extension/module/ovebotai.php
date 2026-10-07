@@ -198,6 +198,15 @@ class ControllerExtensionModuleOvebotai extends Controller {
             return;
         }
 
+        // The agent the conversion belongs to, named explicitly as the tracking
+        // docs ask (event.js would otherwise fall back to the agent in the
+        // `chat` push, or to the default agent). Same rule as the widget: the
+        // workspace's default agent has no public_id, so nothing is sent for it.
+        $agent = (string)$this->config->get('module_ovebotai_agent');
+        if ($agent !== '' && $agent !== 'default') {
+            $purchase = array('agent' => $agent) + $purchase;
+        }
+
         // JSON_HEX_TAG: product names end up inside this inline <script>.
         $payload = json_encode($purchase, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG);
 

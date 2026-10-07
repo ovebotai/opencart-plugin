@@ -213,6 +213,7 @@ See all plans and pricing on the [Ovebot.ai website](https://ovebot.ai).
 ### 1.2.0
 
 - Knowledge base kept in sync with OpenCart: editing an information page the wizard sent to the agent updates its entry on Ovebot.ai right away (disabling the page deactivates the entry), and deleting the page deactivates it. Errors are logged and never block the page save. Existing installs pick the new hooks up on the next visit to the module page - no reinstall needed.
+- Purchase tracking names the connected agent explicitly in the `purchase` event, as the Ovebot.ai tracking snippet documents.
 
 ### 1.1.0
 
