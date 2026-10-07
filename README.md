@@ -210,6 +210,10 @@ See all plans and pricing on the [Ovebot.ai website](https://ovebot.ai).
 
 ## Changelog
 
+### 1.2.0
+
+- Knowledge base kept in sync with OpenCart: editing an information page the wizard sent to the agent updates its entry on Ovebot.ai right away (disabling the page deactivates the entry), and deleting the page deactivates it. Errors are logged and never block the page save. Existing installs pick the new hooks up on the next visit to the module page - no reinstall needed.
+
 ### 1.1.0
 
 - Add to cart from chat: new "Add to cart button" setting, synced with your Ovebot.ai account. Recommended products can be added to the cart straight from the conversation, and the chat follows the visitor's cart.

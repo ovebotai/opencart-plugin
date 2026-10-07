@@ -16,7 +16,7 @@ use Ovebotai\Exceptions\OvebotaiException;
 // access; construct directly ($this->load->library() can't resolve a namespace).
 class Ovebotai extends \Model {
     // Plugin version - bump here on release; surfaced via getModuleVersion().
-    const VERSION = '1.1.0';
+    const VERSION = '1.2.0';
 
     private $client;
 
@@ -421,6 +421,19 @@ class Ovebotai extends \Model {
     // Persists the wizard's page selection so a re-run shows the same boxes ticked.
     public function saveKbPageIds(array $information_ids) {
         $this->persist(array('module_ovebotai_kb_page_ids' => array_values(array_map('intval', $information_ids))));
+    }
+
+    // The saved selection (information ids); empty when never saved.
+    public function getKbPageIds() {
+        $saved = $this->config->get('module_ovebotai_kb_page_ids');
+        return is_array($saved) ? array_values(array_map('intval', $saved)) : array();
+    }
+
+    // Wizard finished AND still holding a connection - the state in which the
+    // knowledge base is kept in sync with page edits (see the admin
+    // informationSaved() / informationDeleting() hooks).
+    public function isSetupComplete() {
+        return $this->config->get('module_ovebotai_setup_complete') == '1' && $this->isConnected();
     }
 
     // Flips setup_complete + chat_status on. Called only after finish succeeds.

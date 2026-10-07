@@ -52,6 +52,9 @@ class ControllerExtensionModuleOvebotai extends Controller {
         // settings). View-specific scripts (e.g. setup.js) are added on top.
         $this->document->addStyle('view/stylesheet/ovebotai/ovebotai.css');
 
+        // A module update that added a hook must not wait for a reinstall.
+        $this->model_extension_module_ovebotai->ensureEvents();
+
         // Before showing an authenticated view, confirm the connection is still
         // live. The probe runs apiRequest(), which clears a revoked/expired
         // token, so isSetupComplete() below then flips to false and drops
@@ -513,6 +516,74 @@ class ControllerExtensionModuleOvebotai extends Controller {
 
         $this->response->addHeader('Content-Type: application/json');
         $this->response->setOutput(json_encode($json));
+    }
+
+    // ── Information page hooks (knowledge base resync) ───────────────────────
+
+    // Fired by 'admin/model/catalog/information/editInformation/after'
+    // ($args = [information_id, data]). When the page is one the wizard
+    // synced to the agent's knowledge base, push it again (title/body as just
+    // saved) - or deactivate the entry when the page was disabled. Best-effort:
+    // errors are logged, a page save never fails because Ovebot.ai is unreachable.
+    public function informationSaved(&$route, &$args, &$output) {
+        $information_id = isset($args[0]) ? (int)$args[0] : 0;
+        $data           = isset($args[1]) && is_array($args[1]) ? $args[1] : array();
+
+        if (!$this->holdsPage($information_id)) {
+            return;
+        }
+
+        try {
+            $result = $this->ovebotai()->syncKbPages(array($information_id), !empty($data['status']));
+
+            foreach ($result['failed'] as $message) {
+                $this->logKb($information_id, 'resync skipped: ' . $message);
+            }
+            if ($result['kb_limit'] !== '') {
+                $this->logKb($information_id, 'resync blocked by the knowledge base quota: ' . $result['kb_limit']);
+            }
+        } catch (\Exception $e) {
+            $this->logKb($information_id, 'resync failed: ' . $e->getMessage());
+        }
+    }
+
+    // Fired by 'admin/model/catalog/information/deleteInformation/before'
+    // ($args = [information_id]) - BEFORE, because the entry is deactivated
+    // with the page's current title/body (the API's update needs them) and
+    // those rows are gone once the delete has run. The page is also dropped
+    // from the saved selection so a wizard re-run doesn't tick it.
+    public function informationDeleting(&$route, &$args) {
+        $information_id = isset($args[0]) ? (int)$args[0] : 0;
+
+        if (!$this->holdsPage($information_id)) {
+            return;
+        }
+
+        try {
+            $ovebotai = $this->ovebotai();
+
+            $ovebotai->saveKbPageIds(array_diff($ovebotai->getKbPageIds(), array($information_id)));
+
+            $ovebotai->syncKbPages(array($information_id), false);
+        } catch (\Exception $e) {
+            $this->logKb($information_id, 'deactivation after delete failed: ' . $e->getMessage());
+        }
+    }
+
+    // Only pages the finished wizard selected are mirrored; anything else (or a
+    // store that is disconnected / mid-setup) is left alone.
+    private function holdsPage($information_id) {
+        if (!$information_id) {
+            return false;
+        }
+
+        $ovebotai = $this->ovebotai();
+
+        return $ovebotai->isSetupComplete() && in_array((int)$information_id, $ovebotai->getKbPageIds(), true);
+    }
+
+    private function logKb($information_id, $message) {
+        $this->log->write('Ovebot.ai information #' . (int)$information_id . ' ' . $message);
     }
 
     // ── TEMP: API debug (remove before release) ──────────────────────────────

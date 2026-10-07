@@ -55,12 +55,18 @@ class ModelExtensionModuleOvebotai extends Model {
     // same addEvent() signature otherwise, just an extra $sort_order param
     // on 3.x that defaults to 0.
 
-    private function addEvents() {
-        $events = array(
-            'catalog/controller/common/footer/after'     => 'extension/module/ovebotai/index',
-            'catalog/controller/checkout/success/before' => 'extension/module/ovebotai/captureOrderId',
-            'catalog/view/*/success/after'               => 'extension/module/ovebotai/purchaseEvent',
-        );
+    //
+    // Plus two admin hooks on information pages (1.2.0), which keep the agent's
+    // knowledge base in step with edits made in OpenCart - see
+    // informationSaved() / informationDeleting() in the admin controller:
+    //   - catalog/information/editInformation/after: resync the page's entry
+    //     (or deactivate it when the page was disabled).
+    //   - catalog/information/deleteInformation/before: deactivate the entry
+    //     while the page's title/body can still be read.
+    // Public because ensureEvents() re-registers the list on an already
+    // installed module after an update that added a hook.
+    public function addEvents() {
+        $events = self::events();
 
         if (version_compare(VERSION, '3.0', '<')) {
             $this->load->model('extension/event');
@@ -74,6 +80,39 @@ class ModelExtensionModuleOvebotai extends Model {
             foreach ($events as $trigger => $action) {
                 $this->model_setting_event->addEvent('module_ovebotai', $trigger, $action, 1);
             }
+        }
+    }
+
+    private static function events() {
+        return array(
+            'catalog/controller/common/footer/after'                   => 'extension/module/ovebotai/index',
+            'catalog/controller/checkout/success/before'               => 'extension/module/ovebotai/captureOrderId',
+            'catalog/view/*/success/after'                             => 'extension/module/ovebotai/purchaseEvent',
+            'admin/model/catalog/information/editInformation/after'    => 'extension/module/ovebotai/informationSaved',
+            'admin/model/catalog/information/deleteInformation/before' => 'extension/module/ovebotai/informationDeleting',
+        );
+    }
+
+    // Events are only written at install time, so a module update that adds a
+    // hook (1.2.0: the information page hooks) would leave an already installed
+    // store without it until a reinstall. Called on every admin page load of
+    // the module: one COUNT query, and a full re-register only when the stored
+    // list differs from the code's.
+    public function ensureEvents() {
+        $triggers = array_keys(self::events());
+
+        $placeholders = array();
+        foreach ($triggers as $trigger) {
+            $placeholders[] = "'" . $this->db->escape($trigger) . "'";
+        }
+
+        $query = $this->db->query(
+            "SELECT COUNT(DISTINCT `trigger`) AS total FROM `" . DB_PREFIX . "event`
+             WHERE `code` = 'module_ovebotai' AND `trigger` IN (" . implode(',', $placeholders) . ")"
+        );
+
+        if ((int)$query->row['total'] !== count($triggers)) {
+            $this->addEvents();
         }
     }
 
